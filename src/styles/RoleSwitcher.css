@@ -1,0 +1,344 @@
+/* Role Switcher Styles */
+
+/* Dropdown Variant */
+.role-switcher-dropdown .role-indicator {
+  padding: 8px 16px;
+  color: #495057;
+  font-weight: 600;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.role-switcher-dropdown .role-icon {
+  margin-right: 8px;
+}
+
+.role-switcher-dropdown .role-switch {
+  position: relative;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #495057;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.role-switcher-dropdown .role-switch:hover {
+  background: #e9ecef;
+  color: #212529;
+}
+
+.role-switcher-dropdown .role-switch.active {
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.role-switcher-dropdown .checkmark {
+  position: absolute;
+  right: 12px;
+  color: #4caf50;
+  font-weight: bold;
+}
+
+/* Dropdown Toggle Mini */
+.dropdown-toggle-container {
+  padding: 8px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.dropdown-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100px;
+  height: 32px;
+  background: #e9ecef;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 2px;
+}
+
+.dropdown-toggle:hover {
+  background: #dee2e6;
+}
+
+.dropdown-toggle.toggled {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.dropdown-toggle.loading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.toggle-option {
+  flex: 1;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6c757d;
+  transition: color 0.3s ease;
+  z-index: 1;
+}
+
+.dropdown-toggle.toggled .toggle-option {
+  color: white;
+}
+
+.toggle-slider-mini {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  left: 2px;
+}
+
+.dropdown-toggle.toggled .toggle-slider-mini {
+  transform: translateX(68px);
+}
+
+/* Button Variant */
+.role-switcher-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.role-switcher-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}
+
+.role-switcher-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.switch-icon {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Toggle Switch Variant (iPhone style) */
+.role-switcher-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 200px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.toggle-label {
+  color: #6c757d;
+  transition: color 0.3s ease;
+  user-select: none;
+}
+
+.toggle-label.active {
+  color: #3b82f6;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 80px;
+  height: 40px;
+  background: #e9ecef;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch:hover {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.toggle-switch.toggled {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.toggle-switch.loading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 36px;
+  height: 36px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-switch.toggled .toggle-slider {
+  transform: translateX(40px);
+}
+
+.toggle-icon {
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.toggle-switch.loading .toggle-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Responsive adjustments for toggle */
+@media (max-width: 768px) {
+  .toggle-labels {
+    width: 180px;
+    font-size: 0.8rem;
+  }
+  
+  .toggle-switch {
+    width: 70px;
+    height: 36px;
+  }
+  
+  .toggle-slider {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .toggle-switch.toggled .toggle-slider {
+    transform: translateX(34px);
+  }
+}
+
+/* Card Variant */
+.role-switcher-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.role-switcher-card h3 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.role-switcher-card p {
+  margin: 0 0 20px 0;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.role-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.role-option:hover {
+  border-color: #6366f1;
+  background: #f8faff;
+  transform: translateY(-2px);
+}
+
+.role-option.active {
+  border-color: #6366f1;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.role-option .role-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.role-option span:nth-child(2) {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.role-option .role-description {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .role-switcher-button {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  .role-switcher-card {
+    padding: 20px;
+  }
+}
