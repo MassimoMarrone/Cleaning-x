@@ -804,6 +804,17 @@
   color: #a61717;
 }
 
+.dropdown-item.admin-link {
+  color: #9b59b6;
+  font-weight: 600;
+  border-left: 3px solid #9b59b6;
+  padding-left: 12px;
+}
+.dropdown-item.admin-link:hover {
+  background: #f8f0ff;
+  color: #7d3c98;
+}
+
 /* Testo input form nero */
 .auth-form input {
   color: #222;

@@ -4,10 +4,10 @@ import RoleSwitcher from './RoleSwitcher';
 
 interface HeaderProps {
   isLoggedIn: boolean;
-  userRole: 'client' | 'provider';
+  userRole: 'client' | 'provider' | 'admin';
   onOpenModal: (type: 'login' | 'register') => void;
   onLogout: () => void;
-  onRoleChange: (role: 'client' | 'provider') => void;
+  onRoleChange: (role: 'client' | 'provider' | 'admin') => void;
 }
 
 export default function Header({ isLoggedIn, userRole, onOpenModal, onLogout, onRoleChange }: HeaderProps) {
@@ -50,13 +50,20 @@ export default function Header({ isLoggedIn, userRole, onOpenModal, onLogout, on
           </button>
           {showDropdown && (
             <div className="user-dropdown-menu">
-              <RoleSwitcher 
-                currentRole={userRole} 
-                onRoleChange={onRoleChange}
-                variant="dropdown"
-              />
+              {userRole !== 'admin' && (
+                <RoleSwitcher 
+                  currentRole={userRole as 'client' | 'provider'} 
+                  onRoleChange={onRoleChange}
+                  variant="dropdown"
+                />
+              )}
               <Link className="dropdown-item" to="/dashboard" onClick={()=>setShowDropdown(false)}>Dashboard</Link>
               <Link className="dropdown-item" to="/profile" onClick={()=>setShowDropdown(false)}>Profilo utente</Link>
+              {userRole === 'admin' && (
+                <Link className="dropdown-item admin-link" to="/admin" onClick={()=>setShowDropdown(false)}>
+                  🛡️ Amministrazione
+                </Link>
+              )}
               <Link className="dropdown-item" to="/settings" onClick={()=>setShowDropdown(false)}>Impostazioni</Link>
               <Link className="dropdown-item" to="/bookings" onClick={()=>setShowDropdown(false)}>Prenotazioni</Link>
               <Link className="dropdown-item" to="/favorites" onClick={()=>setShowDropdown(false)}>Servizi preferiti</Link>

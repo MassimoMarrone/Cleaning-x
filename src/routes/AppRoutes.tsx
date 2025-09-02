@@ -10,12 +10,14 @@ import PublishService from '../pages/PublishService';
 import WriteReview from '../pages/WriteReview';
 import Reviews from '../pages/Reviews';
 import Profile from '../pages/Profile';
+import Admin from '../pages/Admin';
 
 interface AppRoutesProps {
   isLoggedIn: boolean;
+  userRole: string;
 }
 
-export default function AppRoutes({ isLoggedIn }: AppRoutesProps) {
+export default function AppRoutes({ isLoggedIn, userRole }: AppRoutesProps) {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
@@ -31,6 +33,11 @@ export default function AppRoutes({ isLoggedIn }: AppRoutesProps) {
       <Route path="/write-review/:bookingId" element={isLoggedIn ? <WriteReview /> : <Navigate to="/" />} />
       <Route path="/reviews/:providerId" element={<Reviews />} />
       <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/" />} />
+      
+      {/* Route Admin - accessibile solo agli admin */}
+      <Route path="/admin" element={
+        isLoggedIn && userRole === 'admin' ? <Admin /> : <Navigate to="/" />
+      } />
       
       <Route path="/settings" element={isLoggedIn ? (
         <div>

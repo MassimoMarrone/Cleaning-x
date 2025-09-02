@@ -39,7 +39,7 @@ function App() {
           onRoleChange={setUserRole}
         />
         
-        <AppRoutes isLoggedIn={isLoggedIn} />
+        <AppRoutes isLoggedIn={isLoggedIn} userRole={userRole} />
         
         <AuthModal 
           showModal={showModal}

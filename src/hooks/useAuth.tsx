@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
 
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 interface UseAuthProps {
   onShowSuccess?: (title: string, message?: string) => void;
   onShowError?: (title: string, message?: string) => void;
@@ -9,7 +16,8 @@ export function useAuth(props?: UseAuthProps) {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'login' | 'register'>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<'client' | 'provider'>('client');
+  const [userRole, setUserRole] = useState<'client' | 'provider' | 'admin'>('client');
+  const [user, setUser] = useState<User | null>(null);
 
   const BASE_URL = 'http://localhost:8080';
 
@@ -34,6 +42,7 @@ export function useAuth(props?: UseAuthProps) {
         localStorage.setItem('token', responseData.token);
         setIsLoggedIn(true);
         setUserRole(responseData.user.role || 'client');
+        setUser(responseData.user);
         setShowModal(false);
         
         // Usa toast se disponibile, altrimenti fallback ad alert
@@ -66,6 +75,7 @@ export function useAuth(props?: UseAuthProps) {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole('client');
+    setUser(null);
     localStorage.removeItem('token');
   };
 
@@ -83,6 +93,7 @@ export function useAuth(props?: UseAuthProps) {
         if (data.user) {
           setIsLoggedIn(true);
           setUserRole(data.user.role || 'client');
+          setUser(data.user);
         } else {
           localStorage.removeItem('token');
         }
@@ -98,6 +109,7 @@ export function useAuth(props?: UseAuthProps) {
     modalType,
     isLoggedIn,
     userRole,
+    user,
     handleOpenModal,
     handleCloseModal,
     handleAuthSubmit,
