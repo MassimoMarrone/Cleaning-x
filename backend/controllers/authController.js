@@ -6,9 +6,17 @@ import NotificationService from '../utils/notificationService.js';
 export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    
+    // 🔒 VALIDAZIONE PASSWORD SICURA
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password deve essere almeno 6 caratteri' });
+    }
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ error: 'Email già registrata' });
-    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // 🔐 Hash password con bcrypt rounds maggiori per sicurezza
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = new User({ name, email, password: hashedPassword, role: 'client' });
     await user.save();
     
@@ -25,10 +33,24 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'Email non trovata' });
+    
+    // 🔒 PREVENZIONE USER ENUMERATION - Stesso messaggio per entrambi i casi
+    if (!user) {
+      return res.status(400).json({ error: 'Credenziali non valide' });
+    }
+    
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(400).json({ error: 'Password errata' });
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    if (!valid) {
+      return res.status(400).json({ error: 'Credenziali non valide' });
+    }
+    
+    // 🔐 TOKEN JWT con scadenza sicura
+    const token = jwt.sign(
+      { userId: user._id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '24h' } // Scadenza più specifica
+    );
+    
     res.json({ message: 'Login riuscito', token, user });
   } catch (err) {
     res.status(400).json({ error: err.message });

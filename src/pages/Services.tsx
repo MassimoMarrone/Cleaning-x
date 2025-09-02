@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import SimpleBookingCalendar from '../components/SimpleBookingCalendar';
 import Loading from '../components/Loading';
+import LocationSelector from '../components/LocationSelector';
+// import DistanceDisplay from '../components/DistanceDisplay'; // Temporaneamente disabilitato
 import '../styles/Services.css';
 import '../styles/Loading.css';
+import '../styles/Location.css';
 
 interface Provider {
   _id: string;
@@ -52,6 +55,11 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+    address: string;
+  } | null>(null);
   const [bookingForm, setBookingForm] = useState<BookingFormData>({
     serviceId: '',
     date: '',
@@ -62,9 +70,34 @@ export default function Services() {
     additionalServices: []
   });
 
-  // Fetch servizi dal backend
+  // Fetch servizi dal backend con cache
   useEffect(() => {
-    fetchServices();
+    const fetchServicesWithCache = async () => {
+      // Controlla se abbiamo servizi in cache (5 minuti)
+      const cachedServices = localStorage.getItem('services_cache');
+      const cacheTimestamp = localStorage.getItem('services_cache_timestamp');
+      
+      if (cachedServices && cacheTimestamp) {
+        const cacheAge = Date.now() - parseInt(cacheTimestamp);
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (cacheAge < fiveMinutes) {
+          console.log('✅ Usando servizi da cache');
+          setServices(JSON.parse(cachedServices));
+          setLoading(false);
+          return;
+        } else {
+          console.log('🗑️ Cache scaduta, rimuovo');
+          localStorage.removeItem('services_cache');
+          localStorage.removeItem('services_cache_timestamp');
+        }
+      }
+      
+      // Se non abbiamo cache valida, fetch dal server
+      await fetchServices();
+    };
+    
+    fetchServicesWithCache();
   }, []);
 
   // Filtra servizi solo per area
@@ -87,15 +120,23 @@ export default function Services() {
 
   const fetchServices = async () => {
     try {
-      console.log('🔄 Caricamento servizi...');
+      console.log('🔄 Caricamento servizi dal server...');
       const response = await fetch('http://localhost:8080/api/services');
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Servizi caricati:', data.length);
         console.log('📋 Primi 2 servizi:', data.slice(0, 2));
         setServices(data);
+        
+        // Salva in cache
+        localStorage.setItem('services_cache', JSON.stringify(data));
+        localStorage.setItem('services_cache_timestamp', Date.now().toString());
+        console.log('💾 Servizi salvati in cache');
       } else {
         console.error('❌ Errore response:', response.status, response.statusText);
+        if (response.status === 429) {
+          console.warn('⚠️ Rate limit raggiunto. Riprova tra qualche minuto.');
+        }
       }
     } catch (error) {
       console.error('❌ Errore nel caricamento servizi:', error);
@@ -214,6 +255,15 @@ export default function Services() {
     }));
   };
 
+  const handleLocationChange = (location: { lat: number; lng: number; address: string }) => {
+    setUserLocation(location);
+    // Pre-popola l'indirizzo nel form di booking
+    setBookingForm(prev => ({
+      ...prev,
+      address: location.address
+    }));
+  };
+
   if (loading) {
     return (
       <div className="services-page">
@@ -229,6 +279,9 @@ export default function Services() {
         <p>Scopri professionisti verificati nella tua zona</p>
       </div>
 
+      {/* Selettore Posizione */}
+      <LocationSelector onLocationChange={handleLocationChange} />
+
       {/* Barra di Ricerca Migliorata */}
       <div className="search-bar-modern">
         <div className="search-container">
@@ -236,7 +289,7 @@ export default function Services() {
             <div className="search-icon">📍</div>
             <input
               type="text"
-              placeholder="Dove vuoi il servizio? (es: Milano, Roma Centro...)"
+              placeholder="Filtra per area specifica (es: Milano Centro, Roma EUR...)"
               value={selectedArea}
               onChange={(e) => setSelectedArea(e.target.value)}
               className="location-input"
@@ -314,6 +367,14 @@ export default function Services() {
 
                 <div className="service-areas">
                   <strong>Zone coperte:</strong> {service.serviceAreas.join(', ')}
+                  {/* Temporaneamente disabilitato per evitare rate limiting */}
+                  {/* userLocation && (
+                    <DistanceDisplay
+                      providerAddress={service.serviceAreas[0]} // Usa la prima area come riferimento
+                      userLocation={userLocation}
+                      className="service-distance"
+                    />
+                  ) */}
                 </div>
 
                 <div className="included-services">

@@ -13,6 +13,26 @@ const ServiceSchema = new mongoose.Schema({
   priceType: { type: String, enum: ['fixed', 'hourly', 'room'], default: 'fixed' },
   duration: { type: Number, required: true }, // in minuti
   serviceAreas: [{ type: String }], // Zone coperte
+  
+  // 🗺️ GEOLOCALIZZAZIONE SERVIZIO
+  location: {
+    address: { type: String }, // Indirizzo base operativo
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number }
+    },
+    city: { type: String },
+    serviceRadius: { type: Number, default: 15 } // Raggio servizio in km
+  },
+  
+  // 💰 PREZZI TRASFERTA
+  travelCosts: {
+    enabled: { type: Boolean, default: true },
+    freeRadius: { type: Number, default: 5 }, // km gratuiti
+    pricePerKm: { type: Number, default: 1.5 }, // €/km oltre il raggio gratuito
+    minimumCharge: { type: Number, default: 5 } // Minimo trasferta
+  },
+  
   availableDays: [{ type: String }], // Giorni disponibili
   availableHours: {
     start: { type: String }, // es: "08:00"

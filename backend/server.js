@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import reviewRoutes from './routes/review.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notification.js';
+import mapsRoutes from './routes/maps.js';
 import { performanceLogger, sanitizeInput } from './middleware/performance.js';
 
 dotenv.config();
@@ -21,15 +22,29 @@ const app = express();
 // 🛡️ SECURITY & PERFORMANCE MIDDLEWARE
 app.use(helmet()); // Sicurezza headers HTTP
 app.use(compression()); // Compressione gzip
-app.use(cors());
+
+// 🔒 CORS SICURO - Solo domini autorizzati
+const corsOptions = {
+  origin: [
+    'http://localhost:5173', // Frontend dev
+    'http://localhost:3000', // Frontend prod
+    'https://cleaning-x.vercel.app', // Prod domain (example)
+    'https://www.cleaning-x.com' // Prod domain (example)
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
+
 app.use(express.json({ limit: '10mb' })); // Limita payload size
 app.use(performanceLogger); // Log performance
 app.use(sanitizeInput); // Sanitizza input
 
-// 🚦 RATE LIMITING per 1000 utenti
+// 🚦 RATE LIMITING per 1000 utenti (aumentato per sviluppo)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 300, // 300 richieste per IP ogni 15 minuti (era 100)
+  max: 1000, // 1000 richieste per IP ogni 15 minuti (aumentato per dev)
   message: {
     error: 'Troppe richieste da questo IP, riprova tra 15 minuti'
   },
@@ -47,7 +62,7 @@ const authLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 100, // 100 richieste API per minuto (era 30)
+  max: 300, // 300 richieste API per minuto (aumentato per dev)
   message: {
     error: 'Troppe richieste API, rallenta'
   }
@@ -89,6 +104,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notification', notificationRoutes);
+app.use('/api/maps', mapsRoutes); // 🗺️ Google Maps API
 
 // Avvio server con gestione graceful shutdown
 const PORT = process.env.PORT || 8080;

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Google Maps Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .loading { color: blue; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 300px;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🗺️ Test Google Maps Integration</h1>
+        
+        <div class="test-section">
+            <h3>📍 Test 1: Geocoding</h3>
+            <input type="text" id="addressInput" placeholder="Inserisci un indirizzo (es: Piazza di Spagna, Roma)" value="Piazza di Spagna, Roma">
+            <button onclick="testGeocode()">Test Geocoding</button>
+            <div id="geocodeResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📏 Test 2: Distance Matrix</h3>
+            <input type="text" id="originInput" placeholder="Partenza" value="Roma Termini">
+            <input type="text" id="destinationInput" placeholder="Destinazione" value="Piazza di Spagna">
+            <button onclick="testDistance()">Test Distance</button>
+            <div id="distanceResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Test 3: User Location</h3>
+            <button onclick="testUserLocation()">Get Current Location</button>
+            <div id="locationResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Stato Backend</h3>
+            <button onclick="checkBackendStatus()">Check Backend</button>
+            <div id="backendStatus" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simula il token (in produzione dovrebbe venire dal localStorage)
+        const getToken = () => {
+            return localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGI0NzJiMjE4ZDA1MjQ5ZjJhOWZlNzciLCJlbWFpbCI6Im1hcmlvQGVtYWlsLmNvbSIsImlhdCI6MTc1NjgyOTQ1MiwiZXhwIjoxNzU2OTE1ODUyfQ.crrdjBILs8AhEJy1DPuGbV3M6vLB8NBmPT2KcBz7-hU';
+        };
+
+        async function testGeocode() {
+            const address = document.getElementById('addressInput').value;
+            const resultDiv = document.getElementById('geocodeResult');
+            resultDiv.innerHTML = '<span class="loading">🔄 Testing geocoding...</span>';
+
+            try {
+                const response = await fetch('/api/maps/geocode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ address })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">✅ SUCCESS!</span>
+Address: ${data.formattedAddress}
+Coordinates: ${data.coordinates.lat}, ${data.coordinates.lng}
+City: ${data.addressComponents?.city || 'N/A'}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ ERROR: ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ NETWORK ERROR: ${error.message}</span>`;
+            }
+        }
+
+        async function testDistance() {
+            const origin = document.getElementById('originInput').value;
+            const destination = document.getElementById('destinationInput').value;
+            const resultDiv = document.getElementById('distanceResult');
+            resultDiv.innerHTML = '<span class="loading">🔄 Testing distance calculation...</span>';
+
+            try {
+                const response = await fetch('/api/maps/distance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ origin, destination })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `<span class="success">✅ SUCCESS!</span>
+Distance: ${data.distance.text} (${data.distance.km} km)
+Duration: ${data.duration.text}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ ERROR: ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ NETWORK ERROR: ${error.message}</span>`;
+            }
+        }
+
+        async function testUserLocation() {
+            const resultDiv = document.getElementById('locationResult');
+            resultDiv.innerHTML = '<span class="loading">🔄 Getting location...</span>';
+
+            if (!navigator.geolocation) {
+                resultDiv.innerHTML = '<span class="error">❌ Geolocation not supported</span>';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    resultDiv.innerHTML = `<span class="success">✅ SUCCESS!</span>
+Latitude: ${latitude}
+Longitude: ${longitude}
+Accuracy: ${position.coords.accuracy}m`;
+                },
+                (error) => {
+                    resultDiv.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
+                }
+            );
+        }
+
+        async function checkBackendStatus() {
+            const resultDiv = document.getElementById('backendStatus');
+            resultDiv.innerHTML = '<span class="loading">🔄 Checking backend...</span>';
+
+            try {
+                const response = await fetch('/api/maps/status');
+                const data = await response.json();
+
+                resultDiv.innerHTML = `<span class="success">✅ Backend Online</span>
+Status: ${data.message}
+Configured: ${data.configured}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Backend Offline: ${error.message}</span>`;
+            }
+        }
+
+        // Auto-check backend status on load
+        window.onload = () => {
+            checkBackendStatus();
+        };
+    </script>
+</body>
+</html>
