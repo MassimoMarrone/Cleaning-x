@@ -38,6 +38,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', (await import('./routes/notification.js')).default);
 
 // Avvio server
 const PORT = process.env.PORT || 5000;
