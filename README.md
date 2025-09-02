@@ -1,41 +1,42 @@
-# React + TypeScript + Vite
+# Cleaning-x
 
-aaaabbbccc
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Funzionalità implementate
 
-Currently, two official plugins are available:
+### Backend
+- Integrazione database MongoDB
+- Gestione utenti, servizi, prenotazioni, recensioni
+- Middleware autenticazione JWT e controllo ruolo admin
+- Dashboard amministratore con statistiche, gestione utenti, servizi, prenotazioni
+- Possibilità di bloccare/sbloccare utenti (tranne admin)
+- Eliminazione utenti, servizi, prenotazioni
+- Aggiornamento ruoli utenti
+- Sicurezza: protezione endpoint admin, limitazione creazione admin
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-## Expanding the ESLint configuration
+### Frontend
+- Login/registrazione con token
+- Calendario prenotazioni
+- Dashboard admin con tab utenti, servizi, prenotazioni, statistiche
+- Pulsanti per bloccare/sbloccare/cancellare utenti, servizi, prenotazioni
+- Visualizzazione stato utente (attivo/bloccato)
+- UI responsive e moderna
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-    ],
-    languageOptions: {
-      parserOptions: {
-// eslint.config.js
-import reactDom from 'eslint-plugin-react-dom'
+## Funzionalità da implementare (TODO)
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- [ ] Notifiche in-app (modello, API, UI campanella)
+- [ ] Notifiche email (conferma prenotazione, cancellazione, promemoria)
+- [ ] Filtri e ricerca avanzata nelle dashboard
+- [ ] Moderazione recensioni (approva/rifiuta)
+- [ ] Esportazione dati (CSV/Excel)
+- [ ] Integrazione pagamenti (Stripe/PayPal)
+- [ ] Storico azioni admin (audit log)
+- [ ] Gestione documenti (fatture, ricevute)
+- [ ] Ruoli avanzati (super-admin, moderatore)
+- [ ] Migliorare performance commit git (ottimizzare .gitignore, repository)
+- [ ] Test automatici (unit/integration)
+- [ ] Documentazione API
+
+---
+
+Spunta le attività man mano che vengono completate!
