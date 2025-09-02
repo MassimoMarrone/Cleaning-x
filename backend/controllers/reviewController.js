@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Service from '../models/Service.js';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
+import NotificationService from '../utils/notificationService.js';
 
 // Crea una nuova recensione
 export const createReview = async (req, res) => {
@@ -57,6 +58,14 @@ export const createReview = async (req, res) => {
       { path: 'reviewer', select: 'name' },
       { path: 'service', select: 'title' }
     ]);
+
+    // 🔔 NOTIFICA: Nuova recensione per il provider
+    await NotificationService.createReviewNotification(
+      booking.provider,
+      review.reviewer.name,
+      rating,
+      review.service.title
+    );
 
     res.status(201).json({ 
       message: 'Recensione creata con successo', 

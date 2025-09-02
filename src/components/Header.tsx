@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import RoleSwitcher from './RoleSwitcher';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   isLoggedIn: boolean;
@@ -38,6 +39,7 @@ export default function Header({ isLoggedIn, userRole, onOpenModal, onLogout, on
         <Link to="/about">Chi siamo</Link>
         <Link to="/contact">Contatti</Link>
       </nav>
+      {isLoggedIn && <NotificationBell />}
       {!isLoggedIn ? (
         <div className="auth-buttons">
           <button className="login-btn" onClick={() => onOpenModal('login')}>Accedi</button>

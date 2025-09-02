@@ -2,6 +2,7 @@ import Booking from '../models/Booking.js';
 import Service from '../models/Service.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import NotificationService from '../utils/notificationService.js';
 
 export const getBookings = async (req, res) => {
   try {
@@ -120,6 +121,14 @@ export const createBooking = async (req, res) => {
     await booking.populate('provider', 'name businessName email');
     await booking.populate('service', 'title category');
     
+    // 🔔 NOTIFICA: Nuova prenotazione per il provider
+    await NotificationService.createBookingNotification(
+      provider,
+      booking.client.name,
+      booking.service.title,
+      date
+    );
+    
     res.status(201).json({ 
       message: 'Richiesta di prenotazione inviata con successo!', 
       booking 
@@ -152,10 +161,31 @@ export const updateBookingStatus = async (req, res) => {
     if (booking.provider.toString() !== decoded.userId) {
       return res.status(403).json({ error: 'Non autorizzato' });
     }
-    
+
+    const oldStatus = booking.status;
     booking.status = status;
     booking.updatedAt = new Date();
     await booking.save();
+    
+    // Popola i dati per le notifiche
+    await booking.populate('client', 'name email');
+    await booking.populate('service', 'title category');
+    
+    // 🔔 NOTIFICA: Aggiornamento stato prenotazione per il cliente
+    if (status === 'accepted' && oldStatus === 'pending') {
+      await NotificationService.createBookingConfirmationNotification(
+        booking.client._id,
+        booking.service.title,
+        booking.date
+      );
+    } else if (status === 'cancelled') {
+      await NotificationService.createBookingCancelledNotification(
+        booking.client._id,
+        booking.service.title,
+        booking.date,
+        'Cancellata dal fornitore'
+      );
+    }
     
     res.json({ message: 'Status aggiornato con successo', booking });
   } catch (err) {

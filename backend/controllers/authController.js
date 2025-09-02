@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import NotificationService from '../utils/notificationService.js';
 
 export const register = async (req, res) => {
   try {
@@ -10,6 +11,10 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hashedPassword, role: 'client' });
     await user.save();
+    
+    // 🔔 NOTIFICA: Benvenuto per nuovo utente
+    await NotificationService.createWelcomeNotification(user._id, user.role);
+    
     res.status(201).json({ message: 'Registrazione avvenuta', user });
   } catch (err) {
     res.status(400).json({ error: err.message });

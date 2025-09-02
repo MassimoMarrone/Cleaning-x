@@ -1,6 +1,7 @@
 import Service from '../models/Service.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import NotificationService from '../utils/notificationService.js';
 
 // Ottieni tutti i servizi attivi
 export const getServices = async (req, res) => {
@@ -78,6 +79,14 @@ export const createService = async (req, res) => {
     await service.save();
     
     await service.populate('provider', 'name businessName');
+    
+    // 🔔 NOTIFICA: Servizio approvato automaticamente (o in attesa di approvazione)
+    if (service.isActive) {
+      await NotificationService.createServiceApprovedNotification(
+        decoded.userId,
+        service.title
+      );
+    }
     
     res.status(201).json({ message: 'Servizio creato con successo', service });
   } catch (err) {
