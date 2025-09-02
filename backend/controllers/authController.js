@@ -100,6 +100,11 @@ export const switchRole = async (req, res) => {
       return res.status(404).json({ error: 'Utente non trovato' });
     }
 
+    // 🛡️ PROTEZIONE ADMIN: Gli admin non possono cambiare ruolo
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Gli amministratori non possono cambiare ruolo' });
+    }
+
     // Se passa a provider ma non ha informazioni business, inizializza campi base
     if (role === 'provider' && !user.businessName) {
       user.businessName = user.name + ' Services';
