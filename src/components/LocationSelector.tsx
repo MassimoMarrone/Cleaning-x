@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { safeConsoleError, safeFetch } from '../utils/security';
 import AddressAutocomplete from './AddressAutocomplete';
 import '../styles/Location.css';
 
@@ -23,38 +24,59 @@ export default function LocationSelector({ onLocationChange, className = '' }: L
   } = useGeolocation();
 
   const handleUseCurrentLocation = async () => {
-    setLocationError(null); // Reset errore precedente
-    
+    setLocationError(null);
+
     try {
       const coords = await getCurrentLocation();
-      
-      // Reverse geocoding per ottenere l'indirizzo
-      const response = await fetch('/api/maps/reverse-geocode', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ lat: coords.lat, lng: coords.lng })
-      });
-      
-      const data = await response.json();
-      const address = data.success ? data.formattedAddress : 'Posizione corrente';
-      
+
+      let resolvedAddress = 'Posizione corrente';
+      let reverseGeocodeMessage: string | null = null;
+
+      try {
+        const response = await safeFetch('/api/maps/reverse-geocode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ lat: coords.lat, lng: coords.lng })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            reverseGeocodeMessage = 'Posizione rilevata. Effettua il login per ottenere l\'indirizzo completo.';
+          } else {
+            reverseGeocodeMessage = payload?.error || 'Posizione rilevata. Impossibile recuperare l\'indirizzo completo.';
+          }
+        } else if (payload?.success && payload.formattedAddress) {
+          resolvedAddress = payload.formattedAddress;
+        } else if (payload?.error) {
+          reverseGeocodeMessage = payload.error;
+        }
+      } catch (reverseError) {
+        safeConsoleError('Errore reverse geocoding:', reverseError);
+        reverseGeocodeMessage = 'Posizione rilevata tramite GPS, ma il server non ha risposto. Controlla che il backend sia attivo.';
+      }
+
       const location = {
         lat: coords.lat,
         lng: coords.lng,
-        address
+        address: resolvedAddress
       };
-      
+
       setSelectedLocation(location);
       onLocationChange(location);
+
+      if (reverseGeocodeMessage) {
+        setLocationError(reverseGeocodeMessage);
+      }
     } catch (error) {
-      console.error('Errore posizione:', error);
-      
-      // Gestione errori specifici per geolocalizzazione
+      safeConsoleError('Errore posizione:', error);
+
       let errorMessage = 'Impossibile ottenere la posizione.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('denied')) {
           errorMessage = 'Permessi di geolocalizzazione negati. Per usare questa funzione, concedi i permessi di posizione nelle impostazioni del browser.';
@@ -64,7 +86,7 @@ export default function LocationSelector({ onLocationChange, className = '' }: L
           errorMessage = 'Timeout nella rilevazione della posizione. Riprova o inserisci manualmente il tuo indirizzo.';
         }
       }
-      
+
       setLocationError(errorMessage);
     }
   };

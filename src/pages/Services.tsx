@@ -55,11 +55,6 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-    address: string;
-  } | null>(null);
   const [bookingForm, setBookingForm] = useState<BookingFormData>({
     serviceId: '',
     date: '',
@@ -256,7 +251,6 @@ export default function Services() {
   };
 
   const handleLocationChange = (location: { lat: number; lng: number; address: string }) => {
-    setUserLocation(location);
     // Pre-popola l'indirizzo nel form di booking
     setBookingForm(prev => ({
       ...prev,

@@ -62,7 +62,7 @@ export const useGeolocation = () => {
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000 // 5 minuti
+          maximumAge: 0 // Richiedi sempre una posizione fresca
         }
       );
     });
