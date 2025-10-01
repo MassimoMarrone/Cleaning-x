@@ -63,8 +63,12 @@ export const createBooking = async (req, res) => {
     
     // Verifica che il fornitore esista e sia effettivamente un provider
     const providerExists = await User.findById(provider);
-    if (!providerExists || providerExists.role !== 'provider') {
+    if (!providerExists) {
       return res.status(404).json({ error: 'Fornitore non trovato' });
+    }
+
+    if (providerExists.isBlocked) {
+      return res.status(403).json({ error: 'Fornitore temporaneamente non disponibile' });
     }
 
     // 🔒 CONTROLLO DISPONIBILITÀ - Previene conflitti di prenotazione
@@ -162,6 +166,10 @@ export const updateBookingStatus = async (req, res) => {
       return res.status(403).json({ error: 'Non autorizzato' });
     }
 
+    if (status === 'completed') {
+      return res.status(400).json({ error: 'Per completare un lavoro invia la prova di completamento.' });
+    }
+
     const oldStatus = booking.status;
     booking.status = status;
     booking.updatedAt = new Date();
@@ -221,7 +229,8 @@ export const getProviderBookings = async (req, res) => {
       status: booking.status,
       additionalServices: booking.additionalServices,
       notes: booking.notes,
-      createdAt: booking.createdAt
+      createdAt: booking.createdAt,
+      completionProof: booking.completionProof
     }));
     
     res.json({ bookings: formattedBookings });
@@ -258,7 +267,8 @@ export const getClientBookings = async (req, res) => {
       status: booking.status,
       additionalServices: booking.additionalServices,
       notes: booking.notes,
-      createdAt: booking.createdAt
+      createdAt: booking.createdAt,
+      completionProof: booking.completionProof
     }));
     
     res.json({ bookings: formattedBookings });
@@ -334,8 +344,12 @@ export const checkAvailability = async (req, res) => {
     
     // Verifica che il fornitore esista
     const provider = await User.findById(providerId);
-    if (!provider || provider.role !== 'provider') {
+    if (!provider) {
       return res.status(404).json({ error: 'Fornitore non trovato' });
+    }
+
+    if (provider.isBlocked) {
+      return res.status(403).json({ error: 'Fornitore temporaneamente non disponibile' });
     }
     
     const availableSlots = await getAvailableSlots(providerId, date);
@@ -351,5 +365,70 @@ export const checkAvailability = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const submitCompletionProof = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { photos, note } = req.body;
+
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'Accesso negato' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
+
+    const booking = await Booking.findById(id)
+      .populate('client', 'name email')
+      .populate('service', 'title category');
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Prenotazione non trovata' });
+    }
+
+    if (booking.provider.toString() !== decoded.userId) {
+      return res.status(403).json({ error: 'Non autorizzato' });
+    }
+
+    if (!['in_progress', 'accepted'].includes(booking.status)) {
+      return res.status(400).json({ error: 'Puoi completare solo prenotazioni in corso.' });
+    }
+
+    if (!Array.isArray(photos) || photos.length === 0) {
+      return res.status(400).json({ error: 'Allega almeno una foto del lavoro completato.' });
+    }
+
+    if (photos.length > 5) {
+      return res.status(400).json({ error: 'Puoi caricare al massimo 5 foto.' });
+    }
+
+    const sanitizedPhotos = photos.map((photo) => {
+      if (typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+        throw new Error('Formato immagine non valido. Invia file immagine in formato base64.');
+      }
+      return photo;
+    });
+
+    booking.completionProof = {
+      photos: sanitizedPhotos,
+      note: note?.trim() || '',
+      submittedAt: new Date(),
+      verifiedByClient: false
+    };
+    booking.status = 'completed';
+    booking.updatedAt = new Date();
+
+    await booking.save();
+
+    await NotificationService.createBookingCompletionNotification(
+      booking.client._id,
+      booking.service.title
+    );
+
+    res.json({ message: 'Completamento registrato con successo', booking });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };

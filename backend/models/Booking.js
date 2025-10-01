@@ -26,6 +26,14 @@ const BookingSchema = new mongoose.Schema({
     default: 'pending',
     enum: ['pending', 'accepted', 'in_progress', 'completed', 'cancelled']
   },
+
+  // Prova di completamento inviata dal fornitore
+  completionProof: {
+    photos: [{ type: String }], // Base64 o URL immagini
+    note: { type: String },
+    submittedAt: { type: Date },
+    verifiedByClient: { type: Boolean, default: false }
+  },
   
   // Review system
   clientReview: {

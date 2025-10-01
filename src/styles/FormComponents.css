@@ -1,4 +1,21 @@
 /* Form Components Styles - Reset completo */
+.modal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.modal-title-row h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .form-input-group {
   margin-bottom: 1rem;
 }

@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import RoleSwitcher from '../components/RoleSwitcher';
 import '../styles/ProviderDashboard.css';
 
+interface CompletionProof {
+  photos: string[];
+  note?: string;
+  submittedAt?: string;
+  verifiedByClient?: boolean;
+}
+
 interface Booking {
   _id: string;
   clientName: string;
@@ -19,6 +26,7 @@ interface Booking {
   }>;
   notes?: string;
   createdAt: string;
+  completionProof?: CompletionProof;
 }
 
 interface Stats {
@@ -37,6 +45,23 @@ interface Service {
   createdAt: string;
 }
 
+const MAX_COMPLETION_PHOTOS = 5;
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Impossibile leggere il file.'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Errore nella lettura del file.'));
+    reader.readAsDataURL(file);
+  });
+};
+
 const ProviderDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -49,6 +74,11 @@ const ProviderDashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'completed' | 'all'>('pending');
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [completionTarget, setCompletionTarget] = useState<string | null>(null);
+  const [completionForm, setCompletionForm] = useState<{ note: string; photos: string[] }>({ note: '', photos: [] });
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [submittingCompletion, setSubmittingCompletion] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -143,6 +173,112 @@ const ProviderDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Errore:', error);
+    }
+  };
+
+  const openCompletionModal = (bookingId: string) => {
+    setCompletionTarget(bookingId);
+    setCompletionForm({ note: '', photos: [] });
+    setCompletionError(null);
+    setCompletionModalOpen(true);
+  };
+
+  const closeCompletionModal = () => {
+    setCompletionModalOpen(false);
+    setCompletionTarget(null);
+    setCompletionForm({ note: '', photos: [] });
+    setCompletionError(null);
+  };
+
+  const handleCompletionFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const remainingSlots = MAX_COMPLETION_PHOTOS - completionForm.photos.length;
+    if (remainingSlots <= 0) {
+      setCompletionError(`Puoi caricare al massimo ${MAX_COMPLETION_PHOTOS} foto.`);
+      event.target.value = '';
+      return;
+    }
+
+    const selectedFiles = files.slice(0, remainingSlots);
+
+    try {
+      const base64Images = await Promise.all(selectedFiles.map((file) => {
+        if (!file.type.startsWith('image/')) {
+          throw new Error('Sono ammessi solo file immagine.');
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error('Ogni immagine deve essere inferiore a 5MB.');
+        }
+        return fileToBase64(file);
+      }));
+
+      setCompletionForm(prev => ({
+        ...prev,
+        photos: [...prev.photos, ...base64Images]
+      }));
+      setCompletionError(null);
+    } catch (error) {
+      setCompletionError(error instanceof Error ? error.message : 'Errore durante il caricamento delle immagini.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const removeCompletionPhoto = (index: number) => {
+    setCompletionForm(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
+
+  const submitCompletionProof = async () => {
+    if (!completionTarget) {
+      setCompletionError('Prenotazione non valida.');
+      return;
+    }
+
+    if (completionForm.photos.length === 0) {
+      setCompletionError('Carica almeno una foto del lavoro completato.');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setCompletionError('Sessione scaduta. Effettua di nuovo il login.');
+      return;
+    }
+
+    try {
+      setSubmittingCompletion(true);
+      const response = await fetch(`http://localhost:8080/api/bookings/${completionTarget}/complete`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          photos: completionForm.photos,
+          note: completionForm.note.trim()
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setCompletionError(data.error || data.message || 'Errore durante l\'invio della conferma.');
+        return;
+      }
+
+      closeCompletionModal();
+      await fetchBookings();
+      setActiveTab('completed');
+    } catch (error) {
+      console.error('Errore invio completamento:', error);
+      setCompletionError('Errore di connessione durante l\'invio della conferma.');
+    } finally {
+      setSubmittingCompletion(false);
     }
   };
 
@@ -350,6 +486,23 @@ const ProviderDashboard: React.FC = () => {
                       <strong>Note:</strong> {booking.notes}
                     </div>
                   )}
+
+                  {booking.completionProof?.note && (
+                    <div className="detail-row">
+                      <strong>Nota completamento:</strong> {booking.completionProof.note}
+                    </div>
+                  )}
+
+                  {booking.completionProof?.photos?.length ? (
+                    <div className="detail-row completion-proof-row">
+                      <strong>Foto completamento:</strong>
+                      <div className="completion-proof-gallery">
+                        {booking.completionProof.photos.map((photo, index) => (
+                          <img key={index} src={photo} alt={`Completamento ${index + 1}`} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   
                   <div className="detail-row">
                     <strong>Prenotato il:</strong> {new Date(booking.createdAt).toLocaleDateString('it-IT')}
@@ -394,7 +547,7 @@ const ProviderDashboard: React.FC = () => {
                   {booking.status === 'in_progress' && (
                     <button 
                       className="btn-success"
-                      onClick={() => updateBookingStatus(booking._id, 'completed')}
+                      onClick={() => openCompletionModal(booking._id)}
                     >
                       Completa Lavoro
                     </button>
@@ -405,6 +558,69 @@ const ProviderDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {completionModalOpen && (
+        <div className="completion-modal-overlay">
+          <div className="completion-modal">
+            <h3>Conferma completamento lavoro</h3>
+            <p>Carica fino a {MAX_COMPLETION_PHOTOS} foto del lavoro svolto e aggiungi una nota opzionale per il cliente.</p>
+
+            {completionError && <div className="completion-modal-error">{completionError}</div>}
+
+            <div className="completion-photos-preview">
+              {completionForm.photos.map((photo, index) => (
+                <div key={index} className="completion-photo">
+                  <img src={photo} alt={`Prova completamento ${index + 1}`} />
+                  <button 
+                    type="button" 
+                    className="remove-photo"
+                    onClick={() => removeCompletionPhoto(index)}
+                    aria-label="Rimuovi foto"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {completionForm.photos.length === 0 && (
+                <div className="completion-photo-placeholder">
+                  Nessuna foto caricata
+                </div>
+              )}
+            </div>
+
+            <label className="completion-upload">
+              <span className="btn-secondary">📷 Carica foto</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                multiple 
+                onChange={handleCompletionFiles}
+                hidden
+              />
+            </label>
+
+            <textarea
+              className="completion-note"
+              placeholder="Scrivi un breve riepilogo (opzionale)"
+              value={completionForm.note}
+              onChange={(e) => setCompletionForm(prev => ({ ...prev, note: e.target.value }))}
+            />
+
+            <div className="completion-modal-actions">
+              <button className="btn-secondary" onClick={closeCompletionModal} disabled={submittingCompletion}>
+                Annulla
+              </button>
+              <button 
+                className="btn-success" 
+                onClick={submitCompletionProof}
+                disabled={submittingCompletion || completionForm.photos.length === 0}
+              >
+                {submittingCompletion ? 'Invio in corso...' : 'Invia conferma'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

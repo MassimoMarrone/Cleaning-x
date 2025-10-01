@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { safeFetch, safeConsoleError } from '../utils/security';
 import '../styles/GoogleMaps.css';
 
@@ -21,20 +21,34 @@ interface AddressResult {
 interface AddressAutocompleteProps {
   onAddressSelect: (address: AddressResult) => void;
   placeholder?: string;
+  value?: string;
+  onInputChange?: (value: string) => void;
 }
 
 /**
  * 📍 COMPONENTE AUTOCOMPLETE INDIRIZZI
  * Usa Google Maps Places API per suggerimenti intelligenti
  */
-const AddressAutocomplete = ({ onAddressSelect, placeholder = "Inserisci indirizzo..." }: AddressAutocompleteProps) => {
+const AddressAutocomplete = ({
+  onAddressSelect,
+  placeholder = "Inserisci indirizzo...",
+  value,
+  onInputChange
+}: AddressAutocompleteProps) => {
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [sessionToken] = useState(() => Math.random().toString(36).substring(2)); // Session token per Google Places API
 
+  useEffect(() => {
+    if (value !== undefined && value !== input) {
+  setInput(value);
+    }
+  }, [value, input]);
+
   const handleInputChange = useCallback(async (value: string) => {
     setInput(value);
+    onInputChange?.(value);
     
     if (value.length < 3) {
       setSuggestions([]);
@@ -93,11 +107,13 @@ const AddressAutocomplete = ({ onAddressSelect, placeholder = "Inserisci indiriz
         const result = await response.json();
         
         if (result.success) {
-          onAddressSelect({
+          const addressResult = {
             address: result.formattedAddress,
             coordinates: result.coordinates,
             addressComponents: result.addressComponents
-          });
+          };
+          onAddressSelect(addressResult);
+          onInputChange?.(addressResult.address);
         } else {
           safeConsoleError('Errore geocoding:', result.error);
         }
@@ -118,11 +134,13 @@ const AddressAutocomplete = ({ onAddressSelect, placeholder = "Inserisci indiriz
         const result = await response.json();
         
         if (result.success) {
-          onAddressSelect({
+          const addressResult = {
             address: result.formattedAddress,
             coordinates: result.coordinates,
             addressComponents: result.addressComponents
-          });
+          };
+          onAddressSelect(addressResult);
+          onInputChange?.(addressResult.address);
         } else {
           safeConsoleError('Errore place details:', result.error);
         }

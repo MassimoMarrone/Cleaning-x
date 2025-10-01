@@ -148,6 +148,23 @@ class NotificationService {
       console.error('Errore nella creazione notifica cancellazione:', error);
     }
   }
+
+  // Notifica inviata al cliente quando il provider conferma il completamento
+  static async createBookingCompletionNotification(clientId, serviceName) {
+    try {
+      const notification = new Notification({
+        user: clientId,
+        type: 'booking',
+        message: `Il tuo professionista ha confermato il completamento di "${serviceName}". Controlla le foto e fornisci un feedback!`,
+        link: '/bookings',
+        isRead: false
+      });
+      await notification.save();
+      console.log('Notifica completamento prenotazione creata per cliente:', clientId);
+    } catch (error) {
+      console.error('Errore nella creazione notifica completamento:', error);
+    }
+  }
 }
 
 export default NotificationService;

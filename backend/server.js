@@ -52,11 +52,25 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 20, // 20 tentativi login per IP ogni 15 minuti (era 10)
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minuti
+  max: process.env.NODE_ENV === 'production' ? 20 : 120,
   message: {
-    error: 'Troppi tentativi di login, riprova tra 15 minuti'
+    error: 'Troppi tentativi di login, riprova tra qualche minuto'
+  },
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const switchRoleLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 30, // consentiamo 30 switch al minuto per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // gli switch riusciti non contano
+  message: {
+    error: 'Hai cambiato vista troppe volte in un minuto. Aspetta qualche secondo e riprova.'
   }
 });
 
@@ -69,7 +83,9 @@ const apiLimiter = rateLimit({
 });
 
 // Applica rate limiting
-app.use('/api/auth', authLimiter);
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/register', loginLimiter);
+app.use('/api/auth/switch-role', switchRoleLimiter);
 app.use('/api', apiLimiter);
 app.use(generalLimiter);
 

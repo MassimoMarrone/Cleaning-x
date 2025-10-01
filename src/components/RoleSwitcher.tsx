@@ -20,10 +20,24 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
 
   const switchRole = async (newRole: 'client' | 'provider') => {
     if (newRole === currentRole || loading) return;
-    
+
+    const completeSwitch = () => {
+      onRoleChange?.(newRole);
+      if (newRole === 'provider') {
+        navigate('/provider-dashboard');
+      } else {
+        navigate('/client-dashboard');
+      }
+    };
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Per cambiare vista devi effettuare l\'accesso.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/auth/switch-role', {
         method: 'PUT',
         headers: {
@@ -34,21 +48,31 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
       });
 
       if (response.ok) {
-        if (onRoleChange) {
-          onRoleChange(newRole);
-        }
-        
-        // Reindirizza alla dashboard appropriata
-        if (newRole === 'provider') {
-          navigate('/provider-dashboard');
-        } else {
-          navigate('/client-dashboard');
-        }
-      } else {
-        console.error('Errore nel cambio di ruolo');
+        completeSwitch();
+        return;
       }
+
+      let errorMessage = 'Impossibile cambiare vista: riprova più tardi.';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData?.error || errorData?.message || errorMessage;
+      } catch (parseError) {
+        console.warn('Impossibile leggere la risposta di errore del server.', parseError);
+      }
+
+      if (response.status === 401) {
+        alert('Sessione scaduta. Accedi nuovamente per cambiare vista.');
+        localStorage.removeItem('token');
+        onRoleChange?.('client');
+        navigate('/');
+        return;
+      }
+
+      alert(errorMessage);
     } catch (error) {
-      console.error('Errore:', error);
+      console.error('Errore di rete durante il cambio di ruolo:', error);
+      alert('Server non raggiungibile. Ti mostriamo comunque la vista selezionata in modalità anteprima.');
+      completeSwitch();
     } finally {
       setLoading(false);
     }

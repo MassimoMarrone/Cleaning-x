@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import GuidedTourButton from '../components/GuidedTourButton';
 import '../styles/PublishService.css';
 
 interface ServiceFormData {
@@ -15,6 +16,40 @@ interface ServiceFormData {
   }>;
   images: string[];
 }
+
+const CATEGORY_MAP: Record<string, string> = {
+  'pulizia-casa': 'house-cleaning',
+  'pulizia-ufficio': 'office-cleaning',
+  'pulizia-post-ristrutturazione': 'post-construction',
+  'pulizia-vetri': 'windows',
+  'pulizia-condominiale': 'house-cleaning',
+  sanificazione: 'deep-cleaning',
+  'pulizia-tappeti': 'carpets',
+  altro: 'other'
+};
+
+const mapDurationToMinutes = (duration: string): number => {
+  const lookup: Record<string, number> = {
+    '1 ora': 60,
+    '2 ore': 120,
+    '3 ore': 180,
+    '4 ore': 240,
+    '6 ore': 360,
+    '8 ore': 480,
+    'Giornata intera': 480
+  };
+
+  if (lookup[duration]) {
+    return lookup[duration];
+  }
+
+  const numericMatch = duration.match(/\d+/);
+  if (numericMatch) {
+    return Number(numericMatch[0]) * 60;
+  }
+
+  return 120; // Default a 2 ore se non riconosciuta
+};
 
 const PublishService: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -32,6 +67,99 @@ const PublishService: React.FC = () => {
   const [newServiceArea, setNewServiceArea] = useState('');
   const [newAdditionalService, setNewAdditionalService] = useState({ name: '', price: 0 });
   const navigate = useNavigate();
+
+  const publishTourSteps = useMemo(() => {
+    const steps = [
+      {
+        element: '#tour-publish-header',
+        popover: {
+          title: 'Crea la tua vetrina professionale',
+          description: 'In questa pagina pubblichi un nuovo servizio in tre passaggi guidati con salvataggio automatico alla fine.'
+        }
+      },
+      {
+        element: '#tour-publish-indicator',
+        popover: {
+          title: 'Avanzamento sempre visibile',
+          description: 'Il percorso è diviso in tre step: i pallini ti mostrano a colpo d\'occhio dove ti trovi e cosa resta da completare.'
+        }
+      }
+    ];
+
+    if (currentStep === 1) {
+      steps.push(
+        {
+          element: '#tour-publish-title',
+          popover: {
+            title: 'Titolo ad alto impatto',
+            description: 'Usa un titolo chiaro e specifico: aiuta i clienti a capire subito cosa offri.'
+          }
+        },
+        {
+          element: '#tour-publish-category',
+          popover: {
+            title: 'Categoria corretta',
+            description: 'Scegli la categoria più pertinente per comparire nei filtri giusti e aumentare la visibilità.'
+          }
+        },
+        {
+          element: '#tour-publish-description',
+          popover: {
+            title: 'Descrivi il tuo metodo',
+            description: 'Racconta cosa include il servizio, quali materiali utilizzi e perché i clienti dovrebbero scegliere te.'
+          }
+        }
+      );
+    }
+
+    if (currentStep === 2) {
+      steps.push(
+        {
+          element: '#tour-publish-price',
+          popover: {
+            title: 'Prezzi trasparenti',
+            description: 'Indica il prezzo base e la durata stimata: il sistema usa queste informazioni per calcolare il preventivo.'
+          }
+        },
+        {
+          element: '#tour-publish-areas',
+          popover: {
+            title: 'Zone coperte',
+            description: 'Aggiungi tutte le aree servite: più zone inserisci, più richieste mirate riceverai.'
+          }
+        }
+      );
+    }
+
+    if (currentStep === 3) {
+      steps.push(
+        {
+          element: '#tour-publish-extras',
+          popover: {
+            title: 'Valorizza con i servizi extra',
+            description: 'Offri opzioni aggiuntive per aumentare il valore medio delle richieste e far scegliere pacchetti personalizzati.'
+          }
+        },
+        {
+          element: '#tour-publish-add-extra',
+          popover: {
+            title: 'Aggiungi in un clic',
+            description: 'Imposta nome e prezzo: li potrai riutilizzare in futuro e i clienti li vedranno subito nel checkout.'
+          }
+        }
+      );
+    }
+
+    steps.push({
+      element: '#tour-publish-navigation',
+      popover: {
+        title: 'Controlla e pubblica',
+        description: 'Da qui puoi tornare indietro o proseguire: al terzo step trovi il pulsante per pubblicare immediatamente.'
+      }
+    });
+
+    return steps;
+  }, [currentStep]);
 
   const categories = [
     { value: 'pulizia-casa', label: 'Pulizia Casa' },
@@ -93,13 +221,19 @@ const PublishService: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
+      const payload = {
+        ...formData,
+        category: CATEGORY_MAP[formData.category] || formData.category,
+        duration: mapDurationToMinutes(formData.duration)
+      };
+
       const response = await fetch('http://localhost:8080/api/services', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -140,17 +274,25 @@ const PublishService: React.FC = () => {
 
   return (
     <div className="publish-service">
-      <header className="publish-header">
-        <button 
-          className="btn-back"
-          onClick={() => navigate('/provider-dashboard')}
-        >
-          ← Torna alla Dashboard
-        </button>
+      <header className="publish-header" id="tour-publish-header">
+        <div className="publish-header-top">
+          <button 
+            className="btn-back"
+            onClick={() => navigate('/provider-dashboard')}
+          >
+            ← Torna alla Dashboard
+          </button>
+          <GuidedTourButton
+            steps={publishTourSteps}
+            variant="secondary"
+            className="tour-button--inline"
+            label="Tour pubblicazione"
+          />
+        </div>
         <h1>Pubblica un Nuovo Servizio</h1>
       </header>
 
-      <div className="step-indicator">
+      <div className="step-indicator" id="tour-publish-indicator">
         <div className={`step ${currentStep >= 1 ? 'active' : ''}`}>
           <span className="step-number">1</span>
           <span className="step-label">Dettagli Base</span>
@@ -167,10 +309,10 @@ const PublishService: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="service-form">
         {currentStep === 1 && (
-          <div className="form-step">
+          <div className="form-step" id="tour-publish-step1">
             <h2>📝 Informazioni di Base</h2>
             
-            <div className="form-group">
+            <div className="form-group" id="tour-publish-title">
               <label htmlFor="title">Titolo del Servizio *</label>
               <input
                 id="title"
@@ -182,7 +324,7 @@ const PublishService: React.FC = () => {
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group" id="tour-publish-category">
               <label htmlFor="category">Categoria *</label>
               <select
                 id="category"
@@ -196,7 +338,7 @@ const PublishService: React.FC = () => {
               </select>
             </div>
 
-            <div className="form-group">
+            <div className="form-group" id="tour-publish-description">
               <label htmlFor="description">Descrizione del Servizio *</label>
               <textarea
                 id="description"
@@ -211,11 +353,11 @@ const PublishService: React.FC = () => {
         )}
 
         {currentStep === 2 && (
-          <div className="form-step">
+          <div className="form-step" id="tour-publish-step2">
             <h2>💰 Prezzi e Zone di Servizio</h2>
             
             <div className="form-row">
-              <div className="form-group">
+              <div className="form-group" id="tour-publish-price">
                 <label htmlFor="basePrice">Prezzo Base (€) *</label>
                 <input
                   id="basePrice"
@@ -227,7 +369,7 @@ const PublishService: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" id="tour-publish-duration">
                 <label htmlFor="duration">Durata Stimata *</label>
                 <select
                   id="duration"
@@ -242,7 +384,7 @@ const PublishService: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group" id="tour-publish-areas">
               <label>Zone di Servizio *</label>
               <div className="service-areas">
                 <div className="areas-list">
@@ -277,13 +419,13 @@ const PublishService: React.FC = () => {
         )}
 
         {currentStep === 3 && (
-          <div className="form-step">
+          <div className="form-step" id="tour-publish-step3">
             <h2>⭐ Servizi Aggiuntivi (Opzionale)</h2>
             <p className="step-description">
               Aggiungi servizi extra che i clienti possono richiedere con costi aggiuntivi
             </p>
             
-            <div className="additional-services">
+            <div className="additional-services" id="tour-publish-extras">
               {formData.additionalServices.length > 0 && (
                 <div className="services-list">
                   {formData.additionalServices.map((service, index) => (
@@ -302,7 +444,7 @@ const PublishService: React.FC = () => {
                 </div>
               )}
               
-              <div className="add-service">
+              <div className="add-service" id="tour-publish-add-extra">
                 <input
                   type="text"
                   value={newAdditionalService.name}
@@ -324,7 +466,7 @@ const PublishService: React.FC = () => {
           </div>
         )}
 
-        <div className="form-navigation">
+        <div className="form-navigation" id="tour-publish-navigation">
           {currentStep > 1 && (
             <button type="button" onClick={prevStep} className="btn-secondary">
               ← Indietro

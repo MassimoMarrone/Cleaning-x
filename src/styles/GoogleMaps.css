@@ -12,6 +12,7 @@
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.3s ease;
+  min-width: 0;
 }
 
 .address-input:focus {

@@ -13,6 +13,7 @@ interface FormInputProps {
   showErrorText?: boolean; // Nuova prop per controllare se mostrare il testo
   onChange: (name: string, value: string) => void;
   onBlur: (name: string) => void;
+  containerId?: string;
 }
 
 export default function FormInput({
@@ -27,13 +28,14 @@ export default function FormInput({
   icon,
   showErrorText = false, // Default: solo indicatori visivi
   onChange,
-  onBlur
+  onBlur,
+  containerId
 }: FormInputProps) {
   const hasError = touched && error;
   const isValid = touched && !error && value.length > 0;
 
   return (
-    <div className="form-input-group">
+    <div className="form-input-group" id={containerId}>
       <label htmlFor={name} className="form-label">
         {icon && <span className="form-icon">{icon}</span>}
         {label}

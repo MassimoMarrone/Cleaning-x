@@ -8,11 +8,24 @@
 
 .publish-header {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 2px solid #f0f0f0;
+}
+
+.publish-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.publish-header-top .btn-back {
+  margin-right: auto;
 }
 
 .btn-back {
@@ -377,13 +390,23 @@
   }
   
   .publish-header {
+    gap: 12px;
+  }
+
+  .publish-header-top {
     flex-direction: column;
-    gap: 15px;
-    text-align: center;
+    align-items: stretch;
+  }
+
+  .publish-header-top .btn-back {
+    margin-right: 0;
+    width: 100%;
+    justify-content: center;
   }
   
   .publish-header h1 {
     font-size: 1.8rem;
+    text-align: center;
   }
   
   .form-step {

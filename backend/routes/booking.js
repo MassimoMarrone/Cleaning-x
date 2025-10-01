@@ -6,7 +6,8 @@ import {
   getProviderBookings, 
   getClientBookings, 
   cancelBooking,
-  checkAvailability
+  checkAvailability,
+  submitCompletionProof
 } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -28,6 +29,9 @@ router.post('/', createBooking);
 
 // PUT /api/bookings/:id/status - Aggiorna status prenotazione (solo per provider)
 router.put('/:id/status', updateBookingStatus);
+
+// PUT /api/bookings/:id/complete - Invia prova di completamento e chiudi la prenotazione
+router.put('/:id/complete', submitCompletionProof);
 
 // PUT /api/bookings/:id/cancel - Annulla prenotazione (solo per client)
 router.put('/:id/cancel', cancelBooking);

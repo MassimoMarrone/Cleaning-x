@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import SimpleBookingCalendar from '../components/SimpleBookingCalendar';
 import Loading from '../components/Loading';
-import LocationSelector from '../components/LocationSelector';
+import AddressAutocomplete from '../components/AddressAutocomplete';
+import GuidedTourButton from '../components/GuidedTourButton';
 // import DistanceDisplay from '../components/DistanceDisplay'; // Temporaneamente disabilitato
 import '../styles/Services.css';
 import '../styles/Loading.css';
 import '../styles/Location.css';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { safeFetch, safeConsoleError } from '../utils/security';
 
 interface Provider {
   _id: string;
@@ -48,6 +51,44 @@ interface BookingFormData {
 }
 
 export default function Services() {
+  const servicesTourSteps = useMemo(() => [
+    {
+      element: '#tour-header',
+      popover: {
+        title: 'Benvenuto nel marketplace',
+        description: 'Qui raccontiamo il valore della piattaforma e mostriamo come trovare fornitori verificati nella tua zona.'
+      }
+    },
+    {
+      element: '#tour-search-location',
+      popover: {
+        title: 'Scegli l\'indirizzo',
+        description: 'Usa l\'autocomplete oppure rileva automaticamente la tua posizione per filtrare i professionisti vicino a te.'
+      }
+    },
+    {
+      element: '#tour-search-bar',
+      popover: {
+        title: 'Affina i risultati',
+        description: 'Filtra per zona e data preferita: ti mostriamo solo i professionisti disponibili quando serve a te.'
+      }
+    },
+    {
+      element: '#tour-first-service',
+      popover: {
+        title: 'Scheda servizio premium',
+        description: 'Ogni carta combina rating verificati, prezzi chiari e servizi inclusi per aiutarti a scegliere in pochi secondi.'
+      }
+    },
+    {
+      element: '#tour-services-grid',
+      popover: {
+        title: 'Prenota in un click',
+        description: 'Apri la scheda di un provider per accedere al calendario dinamico, aggiungere extra e inviare la richiesta in modo trasparente.'
+      }
+    }
+  ], []);
+
   const [services, setServices] = useState<Service[]>([]);
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [selectedArea, setSelectedArea] = useState('');
@@ -64,6 +105,74 @@ export default function Services() {
     notes: '',
     additionalServices: []
   });
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const { isLoadingLocation, getCurrentLocation } = useGeolocation();
+
+  const handleDateTimeSelect = useCallback((date: string, time: string) => {
+    setBookingForm(prev => ({
+      ...prev,
+      date,
+      time
+    }));
+  }, []);
+
+  const bookingTourSteps = useMemo(() => {
+    if (!selectedService) {
+      return [];
+    }
+
+    return [
+      {
+        element: '#tour-booking-header',
+        popover: {
+          title: 'Richiedi il servizio giusto',
+          description: `Qui trovi il riepilogo del professionista scelto. Stai prenotando “${selectedService.title}” e puoi avviare la guida in qualsiasi momento.`
+        }
+      },
+      {
+        element: '#tour-booking-calendar',
+        popover: {
+          title: 'Scegli data e orario',
+          description: 'Il calendario mostra in tempo reale le fasce disponibili. Seleziona giorno e orario e li trovi già compilati nel riepilogo.'
+        }
+      },
+      {
+        element: '#tour-booking-phone',
+        popover: {
+          title: 'Contatti rapidi',
+          description: 'Inserisci il numero a cui il professionista ti richiamerà per confermare la prenotazione o chiarire dettagli.'
+        }
+      },
+      {
+        element: '#tour-booking-address',
+        popover: {
+          title: 'Indirizzo preciso',
+          description: 'L\'indirizzo viene precompilato dal selettore di posizione, ma puoi modificarlo qui prima dell\'invio.'
+        }
+      },
+      {
+        element: '#tour-booking-extras',
+        popover: {
+          title: 'Servizi extra opzionali',
+          description: 'Aggiungi trattamenti aggiuntivi per personalizzare l\'intervento e vedere subito l\'impatto sul totale.'
+        }
+      },
+      {
+        element: '#tour-booking-summary',
+        popover: {
+          title: 'Riepilogo trasparente',
+          description: 'Controlla prezzi e servizi selezionati: il totale si aggiorna in automatico ad ogni modifica.'
+        }
+      },
+      {
+        element: '#tour-booking-submit',
+        popover: {
+          title: 'Invia la richiesta',
+          description: 'Conferma quando sei pronto: il provider riceverà la richiesta e ti ricontatterà per i dettagli finali.'
+        }
+      }
+    ];
+  }, [selectedService]);
 
   // Fetch servizi dal backend con cache
   useEffect(() => {
@@ -139,6 +248,89 @@ export default function Services() {
       setLoading(false);
     }
   };
+
+  const handleAreaInputChange = useCallback((value: string) => {
+    setSelectedArea(value);
+    if (locationError) {
+      setLocationError(null);
+    }
+  }, [locationError]);
+
+  const handleAddressSelect = useCallback((addressResult: { address: string }) => {
+    setSelectedArea(addressResult.address);
+    setBookingForm(prev => ({
+      ...prev,
+      address: addressResult.address
+    }));
+    setLocationError(null);
+  }, []);
+
+  const handleUseCurrentLocation = useCallback(async () => {
+    setLocationError(null);
+
+    try {
+      const coords = await getCurrentLocation();
+
+      let resolvedAddress = 'Posizione corrente';
+      let reverseGeocodeMessage: string | null = null;
+
+      try {
+        const response = await safeFetch('/api/maps/reverse-geocode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ lat: coords.lat, lng: coords.lng })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            reverseGeocodeMessage = 'Posizione rilevata. Effettua il login per ottenere l\'indirizzo completo.';
+          } else {
+            reverseGeocodeMessage = payload?.error || 'Posizione rilevata. Impossibile recuperare l\'indirizzo completo.';
+          }
+        } else if (payload?.success && payload.formattedAddress) {
+          resolvedAddress = payload.formattedAddress;
+        } else if (payload?.error) {
+          reverseGeocodeMessage = payload.error;
+        }
+      } catch (reverseError) {
+        safeConsoleError('Errore reverse geocoding:', reverseError);
+        reverseGeocodeMessage = 'Posizione rilevata tramite GPS, ma il server non ha risposto. Controlla che il backend sia attivo.';
+      }
+
+      setSelectedArea(resolvedAddress);
+      setBookingForm(prev => ({
+        ...prev,
+        address: resolvedAddress
+      }));
+
+      if (reverseGeocodeMessage) {
+        setLocationError(reverseGeocodeMessage);
+      } else {
+        setLocationError(null);
+      }
+    } catch (error) {
+      safeConsoleError('Errore posizione:', error);
+
+      let errorMessage = 'Impossibile ottenere la posizione.';
+
+      if (error instanceof Error) {
+        if (error.message.includes('denied')) {
+          errorMessage = 'Permessi di geolocalizzazione negati. Concedi l\'accesso alla posizione dalle impostazioni del browser.';
+        } else if (error.message.includes('unavailable')) {
+          errorMessage = 'Servizio di geolocalizzazione non disponibile. Prova a inserire manualmente l\'indirizzo.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Timeout nella rilevazione della posizione. Riprova o inserisci manualmente il tuo indirizzo.';
+        }
+      }
+
+      setLocationError(errorMessage);
+    }
+  }, [getCurrentLocation]);
 
   const handleSearch = () => {
     console.log('🔍 Ricerca eseguita:', { area: selectedArea, date: selectedDate });
@@ -250,14 +442,6 @@ export default function Services() {
     }));
   };
 
-  const handleLocationChange = (location: { lat: number; lng: number; address: string }) => {
-    // Pre-popola l'indirizzo nel form di booking
-    setBookingForm(prev => ({
-      ...prev,
-      address: location.address
-    }));
-  };
-
   if (loading) {
     return (
       <div className="services-page">
@@ -268,26 +452,40 @@ export default function Services() {
 
   return (
     <div className="services-page">
-      <div className="services-header">
+      <div className="services-header" id="tour-header">
         <h1>Trova il Tuo Esperto di Pulizie</h1>
         <p>Scopri professionisti verificati nella tua zona</p>
+        <GuidedTourButton steps={servicesTourSteps} className="tour-button" label="Avvia tour" />
       </div>
 
-      {/* Selettore Posizione */}
-      <LocationSelector onLocationChange={handleLocationChange} />
-
       {/* Barra di Ricerca Migliorata */}
-      <div className="search-bar-modern">
+      <div className="search-bar-modern" id="tour-search-bar">
         <div className="search-container">
-          <div className="search-field">
-            <div className="search-icon">📍</div>
-            <input
-              type="text"
-              placeholder="Filtra per area specifica (es: Milano Centro, Roma EUR...)"
-              value={selectedArea}
-              onChange={(e) => setSelectedArea(e.target.value)}
-              className="location-input"
-            />
+          <div className="search-field location-search-field" id="tour-search-location">
+            <div className="location-input-row">
+              <div className="search-icon">📍</div>
+              <div className="location-search-body">
+                <div className="address-autocomplete-wrapper">
+                  <AddressAutocomplete
+                    placeholder="Filtra per area specifica (es: Milano Centro, Roma EUR...)"
+                    onAddressSelect={handleAddressSelect}
+                    onInputChange={handleAreaInputChange}
+                    value={selectedArea}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className={`use-location-btn ${isLoadingLocation ? 'loading' : ''}`}
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLoadingLocation}
+                >
+                  {isLoadingLocation ? '🔄 Rilevamento...' : '🎯 Usa la mia posizione'}
+                </button>
+              </div>
+            </div>
+            {locationError && (
+              <div className="location-error-inline">{locationError}</div>
+            )}
           </div>
           
           <div className="search-field">
@@ -308,15 +506,19 @@ export default function Services() {
       </div>
 
       {/* Lista Servizi */}
-      <div className="services-grid">
+      <div className="services-grid" id="tour-services-grid">
         {filteredServices.length === 0 ? (
           <div className="no-services">
             <h3>Nessun servizio trovato</h3>
             <p>Prova a modificare la zona di ricerca</p>
           </div>
         ) : (
-          filteredServices.map(service => (
-            <div key={service._id} className="service-card">
+          filteredServices.map((service, index) => (
+            <div
+              key={service._id}
+              className="service-card"
+              id={index === 0 ? 'tour-first-service' : undefined}
+            >
               <div className="service-image">
                 <img 
                   src={service.images[0] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=250&fit=crop'} 
@@ -406,8 +608,18 @@ export default function Services() {
               &times;
             </button>
             
-            <div className="modal-header">
-              <h2>Prenota: {selectedService.title}</h2>
+            <div className="modal-header" id="tour-booking-header">
+              <div className="modal-header-top">
+                <h2>Prenota: {selectedService.title}</h2>
+                {bookingTourSteps.length > 0 && (
+                  <GuidedTourButton
+                    steps={bookingTourSteps}
+                    variant="secondary"
+                    className="tour-button--inline"
+                    label="Tour prenotazione"
+                  />
+                )}
+              </div>
               <div className="provider-summary">
                 con <strong>{selectedService.provider.businessName || selectedService.provider.name}</strong>
               </div>
@@ -415,23 +627,17 @@ export default function Services() {
             
             <form onSubmit={handleBookingSubmit} className="booking-form">
               {/* Calendario Interattivo per Data e Orario */}
-              <div className="calendar-section">
+              <div className="calendar-section" id="tour-booking-calendar">
                 <SimpleBookingCalendar
                   providerId={selectedService.provider._id}
                   providerName={selectedService.provider.businessName || selectedService.provider.name}
-                  onDateTimeSelect={(date: string, time: string) => {
-                    setBookingForm(prev => ({
-                      ...prev,
-                      date: date,
-                      time: time
-                    }));
-                  }}
+                  onDateTimeSelect={handleDateTimeSelect}
                   selectedDate={bookingForm.date}
                   selectedTime={bookingForm.time}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" id="tour-booking-phone">
                 <label htmlFor="phone">Numero di telefono</label>
                 <input
                   type="tel"
@@ -444,7 +650,7 @@ export default function Services() {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" id="tour-booking-address">
                 <label htmlFor="address">Indirizzo completo</label>
                 <input
                   type="text"
@@ -459,7 +665,7 @@ export default function Services() {
 
               {/* Servizi Aggiuntivi */}
               {selectedService.additionalServices.length > 0 && (
-                <div className="additional-services">
+                <div className="additional-services" id="tour-booking-extras">
                   <h4>Servizi Aggiuntivi (opzionali)</h4>
                   {selectedService.additionalServices.map(service => (
                     <label key={service.name} className="additional-service-item">
@@ -486,7 +692,7 @@ export default function Services() {
                 />
               </div>
 
-              <div className="booking-summary">
+              <div className="booking-summary" id="tour-booking-summary">
                 <h4>Riepilogo Prenotazione:</h4>
                 <div className="summary-line">
                   <span>Servizio base:</span>
@@ -511,6 +717,7 @@ export default function Services() {
                 type="submit" 
                 className={`submit-booking-btn ${(!bookingForm.date || !bookingForm.time) ? 'disabled' : ''}`}
                 disabled={!bookingForm.date || !bookingForm.time}
+                id="tour-booking-submit"
               >
                 {(!bookingForm.date || !bookingForm.time) 
                   ? '📅 Seleziona Data e Orario' 
