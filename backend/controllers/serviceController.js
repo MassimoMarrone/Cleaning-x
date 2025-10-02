@@ -2,6 +2,7 @@ import Service from '../models/Service.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import NotificationService from '../utils/notificationService.js';
+import { invalidateCache } from '../middleware/cache.js';
 
 // Ottieni tutti i servizi attivi
 export const getServices = async (req, res) => {
@@ -87,6 +88,7 @@ export const createService = async (req, res) => {
         service.title
       );
     }
+    invalidateCache.services();
     
     res.status(201).json({ message: 'Servizio creato con successo', service });
   } catch (err) {
@@ -116,6 +118,7 @@ export const updateService = async (req, res) => {
     
     Object.assign(service, req.body);
     await service.save();
+    invalidateCache.services();
     
     res.json({ message: 'Servizio aggiornato con successo', service });
   } catch (err) {
@@ -146,6 +149,7 @@ export const deleteService = async (req, res) => {
     // Soft delete: marca come non attivo
     service.isActive = false;
     await service.save();
+    invalidateCache.services();
     
     res.json({ message: 'Servizio eliminato con successo' });
   } catch (err) {

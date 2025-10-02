@@ -308,6 +308,49 @@ const ProviderDashboard: React.FC = () => {
     ? bookings 
     : bookings.filter(booking => booking.status === activeTab);
 
+  const handleEditService = (serviceId: string) => {
+    navigate('/publish-service', { state: { serviceId } });
+  };
+
+  const handleDeleteService = async (serviceId: string, serviceTitle: string) => {
+    const confirmed = window.confirm(
+      `Sei sicuro di voler eliminare "${serviceTitle}"? Il servizio verrà rimosso dall'elenco dei clienti.`
+    );
+    if (!confirmed) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sessione scaduta. Effettua di nuovo il login.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/services/${serviceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const message = error?.error || error?.message || 'Errore durante l\'eliminazione del servizio.';
+        alert(message);
+        return;
+      }
+
+  setServices(prev => prev.filter(service => service._id !== serviceId));
+  // Svuota la cache locale usata dalla pagina pubblica dei servizi
+  localStorage.removeItem('services_cache');
+  localStorage.removeItem('services_cache_timestamp');
+      alert('Servizio eliminato con successo.');
+    } catch (error) {
+      console.error('Errore nell\'eliminazione del servizio:', error);
+      alert('Errore di connessione durante l\'eliminazione del servizio.');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Caricamento dashboard...</div>;
   }
@@ -404,8 +447,18 @@ const ProviderDashboard: React.FC = () => {
                   </p>
                 </div>
                 <div className="service-actions">
-                  <button className="btn-secondary">✏️ Modifica</button>
-                  <button className="btn-danger">🗑️ Elimina</button>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => handleEditService(service._id)}
+                  >
+                    ✏️ Modifica
+                  </button>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => handleDeleteService(service._id, service.title)}
+                  >
+                    🗑️ Elimina
+                  </button>
                 </div>
               </div>
             ))}

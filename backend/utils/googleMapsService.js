@@ -203,6 +203,33 @@ class GoogleMapsService {
         parsed.country = component.long_name;
       }
     });
+
+    if (!parsed.city) {
+      const priorityTypes = [
+        'postal_town',
+        'administrative_area_level_3',
+        'sublocality',
+        'administrative_area_level_2',
+        'administrative_area_level_1'
+      ];
+
+      const fallbackComponent = components.find(component =>
+        component.types.some(type => priorityTypes.includes(type))
+      );
+
+      if (fallbackComponent) {
+        parsed.city = fallbackComponent.long_name || fallbackComponent.short_name;
+      }
+    }
+    
+    if (!parsed.region) {
+      const regionComponent = components.find(component =>
+        component.types.includes('administrative_area_level_1')
+      );
+      if (regionComponent) {
+        parsed.region = regionComponent.long_name;
+      }
+    }
     
     return parsed;
   }

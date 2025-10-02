@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { safeFetch, safeConsoleError } from '../utils/security';
+import { extractCity } from '../utils/location';
 import '../styles/GoogleMaps.css';
 
 interface Suggestion {
@@ -11,6 +12,8 @@ interface Suggestion {
 
 interface AddressResult {
   address: string;
+  city: string;
+  fullAddress?: string;
   coordinates: {
     lat: number;
     lng: number;
@@ -42,7 +45,7 @@ const AddressAutocomplete = ({
 
   useEffect(() => {
     if (value !== undefined && value !== input) {
-  setInput(value);
+      setInput(value);
     }
   }, [value, input]);
 
@@ -84,10 +87,10 @@ const AddressAutocomplete = ({
     } finally {
       setLoading(false);
     }
-  }, [sessionToken]);
+  }, [sessionToken, onInputChange]);
 
   const handleSuggestionClick = async (suggestion: Suggestion) => {
-    setInput(suggestion.description);
+  setInput(suggestion.mainText || suggestion.description);
     setSuggestions([]);
     
     try {
@@ -107,11 +110,26 @@ const AddressAutocomplete = ({
         const result = await response.json();
         
         if (result.success) {
+          const city = extractCity(
+            result.addressComponents,
+            result.formattedAddress,
+            suggestion.description || suggestion.mainText
+          );
+          const normalizedCity = city || result.formattedAddress || suggestion.description || suggestion.mainText || '';
+          console.log('📨 Autocomplete fallback result', {
+            formatted: result.formattedAddress,
+            components: result.addressComponents,
+            fallback: suggestion.mainText || suggestion.description,
+            extractedCity: city
+          });
           const addressResult = {
-            address: result.formattedAddress,
+            address: normalizedCity,
+            city: city || normalizedCity,
+            fullAddress: result.formattedAddress,
             coordinates: result.coordinates,
             addressComponents: result.addressComponents
           };
+          setInput(normalizedCity);
           onAddressSelect(addressResult);
           onInputChange?.(addressResult.address);
         } else {
@@ -134,11 +152,26 @@ const AddressAutocomplete = ({
         const result = await response.json();
         
         if (result.success) {
+          const city = extractCity(
+            result.addressComponents,
+            result.formattedAddress,
+            suggestion.description || suggestion.mainText
+          );
+          const normalizedCity = city || result.formattedAddress || suggestion.description || suggestion.mainText || '';
+          console.log('📨 Autocomplete place details', {
+            formatted: result.formattedAddress,
+            components: result.addressComponents,
+            fallback: suggestion.mainText || suggestion.description,
+            extractedCity: city
+          });
           const addressResult = {
-            address: result.formattedAddress,
+            address: normalizedCity,
+            city: city || normalizedCity,
+            fullAddress: result.formattedAddress,
             coordinates: result.coordinates,
             addressComponents: result.addressComponents
           };
+          setInput(normalizedCity);
           onAddressSelect(addressResult);
           onInputChange?.(addressResult.address);
         } else {

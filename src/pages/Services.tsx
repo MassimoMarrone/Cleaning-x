@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import SimpleBookingCalendar from '../components/SimpleBookingCalendar';
 import Loading from '../components/Loading';
 import AddressAutocomplete from '../components/AddressAutocomplete';
@@ -9,6 +9,7 @@ import '../styles/Loading.css';
 import '../styles/Location.css';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { safeFetch, safeConsoleError } from '../utils/security';
+import { extractCity } from '../utils/location';
 
 interface Provider {
   _id: string;
@@ -107,6 +108,44 @@ export default function Services() {
   });
   const [locationError, setLocationError] = useState<string | null>(null);
   const { isLoadingLocation, getCurrentLocation } = useGeolocation();
+  const demoStateRef = useRef<{
+    selectedArea: string;
+    selectedDate: string;
+    showBookingModal: boolean;
+    selectedService: Service | null;
+    bookingForm: BookingFormData;
+  } | null>(null);
+  const [isDemoRunning, setIsDemoRunning] = useState(false);
+  const [shouldAutoStartBookingTour, setShouldAutoStartBookingTour] = useState(false);
+
+  const cloneBookingForm = useCallback((form: BookingFormData): BookingFormData => ({
+    ...form,
+    additionalServices: [...form.additionalServices]
+  }), []);
+
+  const restoreDemoState = useCallback(() => {
+    if (!demoStateRef.current) {
+      return;
+    }
+
+    const {
+      selectedArea: storedArea,
+      selectedDate: storedDate,
+      showBookingModal: storedModal,
+      selectedService: storedService,
+      bookingForm: storedBookingForm
+    } = demoStateRef.current;
+
+    setSelectedArea(storedArea);
+    setSelectedDate(storedDate);
+    setShowBookingModal(storedModal);
+    setSelectedService(storedService);
+    setBookingForm(cloneBookingForm(storedBookingForm));
+
+    demoStateRef.current = null;
+    setIsDemoRunning(false);
+    setShouldAutoStartBookingTour(false);
+  }, [cloneBookingForm]);
 
   const handleDateTimeSelect = useCallback((date: string, time: string) => {
     setBookingForm(prev => ({
@@ -173,6 +212,110 @@ export default function Services() {
       }
     ];
   }, [selectedService]);
+
+  const handleServicesTourBeforeStart = useCallback(async () => {
+    if (!demoStateRef.current) {
+      demoStateRef.current = {
+        selectedArea,
+        selectedDate,
+        showBookingModal,
+        selectedService,
+        bookingForm: cloneBookingForm(bookingForm)
+      };
+    }
+
+    setIsDemoRunning(true);
+    setShouldAutoStartBookingTour(false);
+
+    const defaultService = services[0];
+    const hasResults = filteredServices.length > 0;
+
+    if ((!selectedArea || !hasResults) && defaultService) {
+      const demoArea = defaultService.serviceAreas?.[0]
+        || defaultService.provider?.businessName
+        || defaultService.provider?.name
+        || 'Milano';
+      setSelectedArea(demoArea);
+    }
+
+    if (!selectedDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setSelectedDate(tomorrow.toISOString().split('T')[0]);
+    }
+
+    if (showBookingModal) {
+      setShowBookingModal(false);
+      setSelectedService(null);
+    }
+
+    await new Promise(resolve => window.setTimeout(resolve, 350));
+  }, [bookingForm, cloneBookingForm, filteredServices.length, selectedArea, selectedDate, selectedService, services, showBookingModal]);
+
+  const handleServicesTourAfterEnd = useCallback(() => {
+    const defaultService = services[0];
+
+    if (!defaultService) {
+      restoreDemoState();
+      return;
+    }
+
+    setSelectedService(defaultService);
+    setBookingForm(prev => ({
+      ...prev,
+      serviceId: defaultService._id
+    }));
+    setShowBookingModal(true);
+
+    window.setTimeout(() => {
+      setShouldAutoStartBookingTour(true);
+    }, 400);
+  }, [restoreDemoState, services]);
+
+  const handleBookingTourBeforeStart = useCallback(async () => {
+    if (!isDemoRunning) {
+      return;
+    }
+
+    setShouldAutoStartBookingTour(false);
+
+    const serviceForDemo = selectedService ?? services[0];
+
+    if (!serviceForDemo) {
+      return;
+    }
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 2);
+    const demoDate = tomorrow.toISOString().split('T')[0];
+
+    setBookingForm({
+      serviceId: serviceForDemo._id,
+      date: demoDate,
+      time: '10:00',
+      address: serviceForDemo.serviceAreas?.[0] || 'Via di esempio, 1',
+      phone: '333 123 4567',
+      notes: 'Richieste speciali dimostrative',
+      additionalServices: serviceForDemo.additionalServices.slice(0, 1).map(item => item.name)
+    });
+
+    await new Promise(resolve => window.setTimeout(resolve, 350));
+  }, [isDemoRunning, selectedService, services]);
+
+  const handleBookingTourAfterEnd = useCallback(() => {
+    if (!isDemoRunning) {
+      return;
+    }
+
+    restoreDemoState();
+  }, [isDemoRunning, restoreDemoState]);
+
+  const handleCloseBookingModal = useCallback(() => {
+    setShowBookingModal(false);
+    if (isDemoRunning) {
+      restoreDemoState();
+    }
+  }, [isDemoRunning, restoreDemoState]);
 
   // Fetch servizi dal backend con cache
   useEffect(() => {
@@ -256,11 +399,12 @@ export default function Services() {
     }
   }, [locationError]);
 
-  const handleAddressSelect = useCallback((addressResult: { address: string }) => {
-    setSelectedArea(addressResult.address);
+  const handleAddressSelect = useCallback((addressResult: { address: string; city: string }) => {
+    const city = addressResult.city || addressResult.address;
+    setSelectedArea(city);
     setBookingForm(prev => ({
       ...prev,
-      address: addressResult.address
+      address: city
     }));
     setLocationError(null);
   }, []);
@@ -272,6 +416,7 @@ export default function Services() {
       const coords = await getCurrentLocation();
 
       let resolvedAddress = 'Posizione corrente';
+      let resolvedCity = '';
       let reverseGeocodeMessage: string | null = null;
 
       try {
@@ -294,6 +439,7 @@ export default function Services() {
           }
         } else if (payload?.success && payload.formattedAddress) {
           resolvedAddress = payload.formattedAddress;
+          resolvedCity = extractCity(payload.addressComponents, payload.formattedAddress);
         } else if (payload?.error) {
           reverseGeocodeMessage = payload.error;
         }
@@ -302,7 +448,8 @@ export default function Services() {
         reverseGeocodeMessage = 'Posizione rilevata tramite GPS, ma il server non ha risposto. Controlla che il backend sia attivo.';
       }
 
-      setSelectedArea(resolvedAddress);
+      const areaForFilter = resolvedCity || resolvedAddress;
+      setSelectedArea(areaForFilter);
       setBookingForm(prev => ({
         ...prev,
         address: resolvedAddress
@@ -455,7 +602,14 @@ export default function Services() {
       <div className="services-header" id="tour-header">
         <h1>Trova il Tuo Esperto di Pulizie</h1>
         <p>Scopri professionisti verificati nella tua zona</p>
-        <GuidedTourButton steps={servicesTourSteps} className="tour-button" label="Avvia tour" />
+        <GuidedTourButton
+          steps={servicesTourSteps}
+          className="tour-button"
+          label="Avvia tour"
+          autoProgress
+          onBeforeStart={handleServicesTourBeforeStart}
+          onAfterEnd={handleServicesTourAfterEnd}
+        />
       </div>
 
       {/* Barra di Ricerca Migliorata */}
@@ -599,11 +753,11 @@ export default function Services() {
 
       {/* Modal Prenotazione */}
       {showBookingModal && selectedService && (
-        <div className="modal-overlay" onClick={() => setShowBookingModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseBookingModal}>
           <div className="booking-modal" onClick={e => e.stopPropagation()}>
             <button 
               className="close-modal" 
-              onClick={() => setShowBookingModal(false)}
+              onClick={handleCloseBookingModal}
             >
               &times;
             </button>
@@ -617,6 +771,10 @@ export default function Services() {
                     variant="secondary"
                     className="tour-button--inline"
                     label="Tour prenotazione"
+                    autoStart={shouldAutoStartBookingTour}
+                    autoProgress={shouldAutoStartBookingTour}
+                    onBeforeStart={handleBookingTourBeforeStart}
+                    onAfterEnd={handleBookingTourAfterEnd}
                   />
                 )}
               </div>

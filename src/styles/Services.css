@@ -369,10 +369,10 @@
 
 .search-container {
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1.25fr) auto;
   gap: 1rem;
   align-items: center;
-  max-width: 800px;
+  width: min(100%, 1100px);
   margin: 0 auto;
 }
 
@@ -452,7 +452,7 @@
   border: none;
   background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
   color: #fff;
-  padding: 0.75rem 1.25rem;
+  padding: 0.65rem 1.15rem;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
