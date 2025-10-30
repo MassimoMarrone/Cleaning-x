@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleSwitcher from '../components/RoleSwitcher';
 import '../styles/ProviderDashboard.css';
+import BookingChatButton from '../components/BookingChatButton';
 
 interface CompletionProof {
   photos: string[];
@@ -12,6 +13,7 @@ interface CompletionProof {
 
 interface Booking {
   _id: string;
+  clientId?: string;
   clientName: string;
   clientEmail: string;
   serviceName: string;
@@ -563,6 +565,10 @@ const ProviderDashboard: React.FC = () => {
                 </div>
 
                 <div className="booking-actions">
+                  {/* Chat con il cliente per questa prenotazione */}
+                  {booking.clientId && (
+                    <BookingChatButton otherUserId={booking.clientId} bookingId={booking._id} />
+                  )}
                   {booking.status === 'pending' && (
                     <>
                       <button 

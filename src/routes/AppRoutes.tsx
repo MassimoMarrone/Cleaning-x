@@ -11,6 +11,7 @@ import WriteReview from '../pages/WriteReview';
 import Reviews from '../pages/Reviews';
 import Profile from '../pages/Profile';
 import Admin from '../pages/Admin';
+import Chat from '../pages/Chat';
 
 interface AppRoutesProps {
   isLoggedIn: boolean;
@@ -33,6 +34,7 @@ export default function AppRoutes({ isLoggedIn, userRole }: AppRoutesProps) {
       <Route path="/write-review/:bookingId" element={isLoggedIn ? <WriteReview /> : <Navigate to="/" />} />
       <Route path="/reviews/:providerId" element={<Reviews />} />
       <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/" />} />
+  <Route path="/chat" element={isLoggedIn ? <Chat /> : <Navigate to="/" />} />
       
       {/* Route Admin - accessibile solo agli admin */}
       <Route path="/admin" element={

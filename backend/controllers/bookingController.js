@@ -3,6 +3,9 @@ import Service from '../models/Service.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import NotificationService from '../utils/notificationService.js';
+import Conversation from '../models/Conversation.js';
+import Message from '../models/Message.js';
+import { getIO } from '../utils/socket.js';
 
 export const getBookings = async (req, res) => {
   try {
@@ -132,6 +135,25 @@ export const createBooking = async (req, res) => {
       booking.service.title,
       date
     );
+
+    // 📩 Chat: crea conversazione client-provider (se non esiste) e invia messaggio automatico
+    try {
+      const participants = [booking.client._id, booking.provider._id];
+      let convo = await Conversation.findOne({ participants: { $all: participants, $size: 2 }, booking: booking._id });
+      if (!convo) {
+        convo = await Conversation.create({ participants, booking: booking._id });
+      }
+      const autoText = `Nuova prenotazione per ${booking.service.title} il ${booking.date} alle ${booking.time}. Iniziate qui la chat per coordinarvi.`;
+      const msg = await Message.create({ conversation: convo._id, sender: booking.client._id, text: autoText });
+      await Conversation.findByIdAndUpdate(convo._id, { lastMessage: { text: msg.text, sender: booking.client._id, at: msg.createdAt } });
+      const io = getIO();
+      if (io) {
+        io.to(`user:${String(booking.provider._id)}`).emit('message:new', { ...msg.toObject(), conversation: String(convo._id) });
+        io.to(`user:${String(booking.client._id)}`).emit('message:new', { ...msg.toObject(), conversation: String(convo._id) });
+      }
+    } catch (e) {
+      console.warn('Chat auto-message error:', e?.message || e);
+    }
     
     res.status(201).json({ 
       message: 'Richiesta di prenotazione inviata con successo!', 
@@ -219,6 +241,7 @@ export const getProviderBookings = async (req, res) => {
     // Trasforma i dati per il frontend
     const formattedBookings = bookings.map(booking => ({
       _id: booking._id,
+      clientId: booking.client._id,
       clientName: booking.client.name,
       clientEmail: booking.client.email,
       serviceName: booking.service.title,
@@ -230,7 +253,15 @@ export const getProviderBookings = async (req, res) => {
       additionalServices: booking.additionalServices,
       notes: booking.notes,
       createdAt: booking.createdAt,
-      completionProof: booking.completionProof
+      completionProof: booking.completionProof,
+      // Payment info
+      paymentIntentId: booking.paymentIntentId,
+      paymentStatus: booking.paymentStatus,
+      amount: booking.amount,
+      currency: booking.currency,
+      requiresAction: booking.requiresAction,
+      chargeId: booking.chargeId,
+      refundIds: booking.refundIds
     }));
     
     res.json({ bookings: formattedBookings });
@@ -257,6 +288,7 @@ export const getClientBookings = async (req, res) => {
     // Trasforma i dati per il frontend
     const formattedBookings = bookings.map(booking => ({
       _id: booking._id,
+      providerId: booking.provider._id,
       providerName: booking.provider.businessName || booking.provider.name,
       providerEmail: booking.provider.email,
       serviceName: booking.service.title,
@@ -268,7 +300,15 @@ export const getClientBookings = async (req, res) => {
       additionalServices: booking.additionalServices,
       notes: booking.notes,
       createdAt: booking.createdAt,
-      completionProof: booking.completionProof
+      completionProof: booking.completionProof,
+      // Payment info
+      paymentIntentId: booking.paymentIntentId,
+      paymentStatus: booking.paymentStatus,
+      amount: booking.amount,
+      currency: booking.currency,
+      requiresAction: booking.requiresAction,
+      chargeId: booking.chargeId,
+      refundIds: booking.refundIds
     }));
     
     res.json({ bookings: formattedBookings });

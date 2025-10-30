@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleSwitcher from '../components/RoleSwitcher';
+import BookingChatButton from '../components/BookingChatButton';
 import '../styles/ClientDashboard.css';
 
 interface Booking {
   _id: string;
+  providerId?: string;
   providerName: string;
   providerEmail: string;
   serviceName: string;
@@ -249,6 +251,10 @@ const ClientDashboard: React.FC = () => {
                 </div>
 
                 <div className="booking-actions">
+                  {/* Chat tra cliente e provider per questa prenotazione */}
+                  {booking.providerId && (
+                    <BookingChatButton otherUserId={booking.providerId} bookingId={booking._id} />
+                  )}
                   {(booking.status === 'pending' || booking.status === 'accepted') && (
                     <button 
                       className="btn-danger"

@@ -19,7 +19,7 @@ export function useAuth(props?: UseAuthProps) {
   const [userRole, setUserRole] = useState<'client' | 'provider' | 'admin'>('client');
   const [user, setUser] = useState<User | null>(null);
 
-  const BASE_URL = 'http://localhost:8080';
+  const BASE_URL = '';
 
   const handleOpenModal = (type: 'login' | 'register') => {
     setModalType(type);
@@ -31,7 +31,7 @@ export function useAuth(props?: UseAuthProps) {
   const handleAuthSubmit = async (data: { email: string; password: string; name?: string }) => {
     try {
       const endpoint = modalType === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -83,7 +83,7 @@ export function useAuth(props?: UseAuthProps) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      fetch('http://localhost:8080/api/auth/profile', {
+  fetch('/api/auth/profile', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

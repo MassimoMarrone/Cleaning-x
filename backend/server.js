@@ -14,6 +14,10 @@ import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notification.js';
 import mapsRoutes from './routes/maps.js';
 import { performanceLogger, sanitizeInput } from './middleware/performance.js';
+import chatRoutes from './routes/chat.js';
+import jwt from 'jsonwebtoken';
+import Conversation from './models/Conversation.js';
+import Message from './models/Message.js';
 
 dotenv.config();
 
@@ -121,6 +125,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notification', notificationRoutes);
 app.use('/api/maps', mapsRoutes); // 🗺️ Google Maps API
+app.use('/api/chat', chatRoutes);
 
 // Avvio server con gestione graceful shutdown
 const PORT = process.env.PORT || 8080;
@@ -135,6 +140,56 @@ const server = app.listen(PORT, () => {
   if (process.env.NODE_ENV === 'production') {
     console.log(`🔄 Avvia con PM2: pm2 start ecosystem.config.json`);
   }
+});
+
+// Socket.IO setup
+import { Server as IOServer } from 'socket.io';
+import { setIO } from './utils/socket.js';
+const io = new IOServer(server, {
+  cors: {
+    origin: corsOptions.origin,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+setIO(io);
+
+io.use((socket, next) => {
+  try {
+    const header = socket.handshake.headers['authorization'];
+    const token = socket.handshake.auth?.token || (typeof header === 'string' && header.startsWith('Bearer ') ? header.replace('Bearer ', '') : undefined);
+    if (!token) return next(new Error('missing auth token'));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    socket.data.userId = decoded.userId;
+    next();
+  } catch (e) {
+    next(e);
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.data.userId;
+  if (!userId) return;
+  socket.join(`user:${userId}`);
+
+  socket.on('conversation:join', (conversationId) => {
+    socket.join(`conv:${conversationId}`);
+  });
+
+  socket.on('message:send', async ({ conversationId, text }) => {
+    try {
+      if (!text || !text.trim()) return;
+      const msg = await Message.create({ conversation: conversationId, sender: userId, text: text.trim() });
+      await Conversation.findByIdAndUpdate(conversationId, { lastMessage: { text: msg.text, sender: userId, at: msg.createdAt } });
+      io.to(`conv:${conversationId}`).emit('message:new', { ...msg.toObject() });
+    } catch (err) {
+      // opzionale: inviare un evento di errore al client
+    }
+  });
+
+  socket.on('message:typing', ({ conversationId, typing }) => {
+    socket.to(`conv:${conversationId}`).emit('message:typing', { userId, typing: Boolean(typing) });
+  });
 });
 
 // Graceful shutdown

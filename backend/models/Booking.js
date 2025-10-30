@@ -20,6 +20,19 @@ const BookingSchema = new mongoose.Schema({
   }],
   totalPrice: { type: Number, required: true },
   
+  // Payment (Stripe integration)
+  paymentIntentId: { type: String, index: true }, // Stripe PaymentIntent ID
+  paymentStatus: { 
+    type: String,
+    enum: ['pending', 'requires_action', 'authorized', 'paid', 'refunded', 'partial_refund', 'failed', 'cancelled'],
+    default: 'pending'
+  },
+  amount: { type: Number }, // Importo in centesimi (es. 5000 = 50.00 EUR)
+  currency: { type: String, default: 'eur', uppercase: true }, // ISO 4217
+  requiresAction: { type: Boolean, default: false }, // SCA/3DS richiesta
+  chargeId: { type: String }, // Stripe Charge ID dopo capture
+  refundIds: [{ type: String }], // Array di Refund IDs in caso di rimborsi
+  
   // Stat
   status: { 
     type: String, 

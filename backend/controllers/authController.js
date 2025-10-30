@@ -46,8 +46,8 @@ export const login = async (req, res) => {
     
     // 🔐 TOKEN JWT con scadenza sicura
     const token = jwt.sign(
-      { userId: user._id, email: user.email }, 
-      process.env.JWT_SECRET, 
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '24h' } // Scadenza più specifica
     );
     
@@ -64,7 +64,7 @@ export const getProfile = async (req, res) => {
       return res.status(401).json({ error: 'Accesso negato, token richiesto' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
+  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
     const user = await User.findById(decoded.userId).select('-password');
     
     if (!user) {
