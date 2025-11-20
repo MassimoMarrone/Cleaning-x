@@ -20,7 +20,7 @@ interface PaymentIntentResponse {
 interface PaymentConfirmation {
   success: boolean;
   paymentStatus: string;
-  booking: any;
+  booking: Record<string, unknown>;
 }
 
 interface PaymentDetails {
