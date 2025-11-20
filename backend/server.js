@@ -13,6 +13,7 @@ import reviewRoutes from './routes/review.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notification.js';
 import mapsRoutes from './routes/maps.js';
+import paymentRoutes from './routes/payment.js';
 import { performanceLogger, sanitizeInput } from './middleware/performance.js';
 import chatRoutes from './routes/chat.js';
 import jwt from 'jsonwebtoken';
@@ -125,6 +126,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notification', notificationRoutes);
 app.use('/api/maps', mapsRoutes); // 🗺️ Google Maps API
+app.use('/api/payments', paymentRoutes); // 💳 Stripe Payments
 app.use('/api/chat', chatRoutes);
 
 // Avvio server con gestione graceful shutdown

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import SimpleBookingCalendar from '../components/SimpleBookingCalendar';
+import StripePaymentForm from '../components/StripePaymentForm';
 import Loading from '../components/Loading';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import GuidedTourButton from '../components/GuidedTourButton';
@@ -97,6 +98,9 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState({ base: 0, fee: 0, total: 0 });
   const [bookingForm, setBookingForm] = useState<BookingFormData>({
     serviceId: '',
     date: '',
@@ -507,6 +511,16 @@ export default function Services() {
     return total;
   };
 
+  const calculateTotalPriceWithFee = () => {
+    const basePrice = calculateTotalPrice();
+    const managementFee = basePrice * 0.09; // 9% commissione
+    return {
+      base: basePrice,
+      fee: managementFee,
+      total: basePrice + managementFee
+    };
+  };
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -552,17 +566,17 @@ export default function Services() {
       });
 
       if (response.ok) {
-        alert('Prenotazione inviata con successo! Il fornitore riceverà la tua richiesta.');
+        const result = await response.json();
+        const bookingId = result.booking._id;
+        
+        // Calcola il totale con la commissione di gestione
+        const priceBreakdown = calculateTotalPriceWithFee();
+        setPaymentAmount(priceBreakdown);
+        setCurrentBookingId(bookingId);
+        
+        // Chiudi il modal di prenotazione e apri quello di pagamento
         setShowBookingModal(false);
-        setBookingForm({
-          serviceId: '',
-          date: '',
-          time: '',
-          address: '',
-          phone: '',
-          notes: '',
-          additionalServices: []
-        });
+        setShowPaymentModal(true);
       } else {
         const error = await response.json();
         alert(`Errore nella prenotazione: ${error.message}`);
@@ -571,6 +585,27 @@ export default function Services() {
       console.error('Errore:', error);
       alert('Errore di connessione. Riprova.');
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setCurrentBookingId(null);
+    setBookingForm({
+      serviceId: '',
+      date: '',
+      time: '',
+      address: '',
+      phone: '',
+      notes: '',
+      additionalServices: []
+    });
+    alert('Pagamento completato con successo! La tua prenotazione è confermata.');
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+    setCurrentBookingId(null);
+    alert('Pagamento annullato. La prenotazione è stata creata ma deve essere pagata per essere confermata.');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -865,9 +900,17 @@ export default function Services() {
                     </div>
                   ) : null;
                 })}
+                <div className="summary-line subtotal">
+                  <span>Subtotale servizio:</span>
+                  <span>€{calculateTotalPrice().toFixed(2)}</span>
+                </div>
+                <div className="summary-line fee">
+                  <span>Costi di gestione (9%):</span>
+                  <span>€{(calculateTotalPrice() * 0.09).toFixed(2)}</span>
+                </div>
                 <div className="summary-total">
-                  <span>Totale:</span>
-                  <span>€{calculateTotalPrice()}</span>
+                  <span>Totale finale:</span>
+                  <span>€{(calculateTotalPrice() * 1.09).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -884,9 +927,32 @@ export default function Services() {
               </button>
               
               <p className="booking-note">
-                La tua richiesta sarà inviata al fornitore, che ti contatterà per confermare.
+                Dopo aver inviato la richiesta, procederai al pagamento sicuro tramite Stripe.
               </p>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pagamento Stripe */}
+      {showPaymentModal && currentBookingId && (
+        <div className="modal-overlay" onClick={handlePaymentCancel}>
+          <div className="payment-modal" onClick={e => e.stopPropagation()}>
+            <button 
+              className="close-modal" 
+              onClick={handlePaymentCancel}
+            >
+              &times;
+            </button>
+            
+            <StripePaymentForm
+              bookingId={currentBookingId}
+              amount={paymentAmount.total}
+              baseAmount={paymentAmount.base}
+              managementFee={paymentAmount.fee}
+              onSuccess={handlePaymentSuccess}
+              onCancel={handlePaymentCancel}
+            />
           </div>
         </div>
       )}

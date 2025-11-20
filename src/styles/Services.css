@@ -774,8 +774,43 @@
     padding: 1rem;
   }
   
+  .payment-modal {
+    width: 95%;
+    padding: 1rem;
+  }
+  
   .provider-avatar {
     width: 40px;
     height: 40px;
   }
+}
+
+/* Payment modal styles */
+.payment-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Enhanced booking summary styles */
+.booking-summary .summary-line.subtotal {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.booking-summary .summary-line.fee {
+  color: #666;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.booking-summary .summary-total {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #0066ff;
 }
